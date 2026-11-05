@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the NMX start-order changes that replace intelfb-0003 on NullMoth v2.7.2."""
+"""Apply staged NMX source adjustments to NullMoth v2.7.2 NMIntelFB."""
 from pathlib import Path
 import sys
 
@@ -15,13 +15,13 @@ def replace_once(old: str, new: str, label: str) -> None:
     global source
     count = source.count(old)
     if count != 1:
-        raise SystemExit(f"STOP: {label}: expected one exact upstream block, found {count}")
+        raise SystemExit(f"STOP: {label}: expected one exact source block, found {count}")
     source = source.replace(old, new, 1)
 
 
-# These two changes replace intelfb-0003. Later 0009 and 0012 patches refine the
-# dependent-ID and VBL/power behavior, so leave those hunks for their own patches.
-replace_once(
+if mode == "early":
+    # Replacement for intelfb-0003. Patches 0009 and 0012 refine this code later.
+    replace_once(
 '''    IOReturn setPowerState(unsigned long ordinal, IOService *) override {
         handleEvent(ordinal ? kIOFBNotifyDidPowerOn : kIOFBNotifyWillPowerOff);
         return kIOPMAckImplied;
@@ -32,10 +32,10 @@ replace_once(
         ifb_trail("sp-done");
         return kIOPMAckImplied;
     }''',
-"setPowerState trace",
-)
+        "setPowerState trace",
+    )
 
-replace_once(
+    replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     if (!IOFramebuffer::start(provider)) {
         ifb_trail("fb-start-failed");
@@ -71,25 +71,10 @@ replace_once(
         OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
     }
     ifb_trail("fb-started");''',
-"dependent-ID before IOFramebuffer::start",
-)
-
-elif mode == "kapi":
-    replace_once(
-'''    armVbl();
-    ifb_trail("vbl");
-    registerPowerDriver(this, kPowerStates, 2);''',
-'''    armVbl();
-    ifb_trail("vbl");
-    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
-    registerPowerDriver(this, kPowerStates, 2);''',
-    "initialize the primary NVKMS device after VBL startup",
+        "dependent-ID before IOFramebuffer::start",
     )
-else:
-    raise SystemExit(f"unknown mode: {mode}")
-
-path.write_text(source)
-print(f"Applied the v2.7.2 NMX {mode} port: {path}")elif mode == "kapi":
+elif mode == "kapi":
+    # Patch 0011 adds kapiInit(); insert its call before patch 0012 refines the VBL/power block.
     replace_once(
 '''    armVbl();
     ifb_trail("vbl");
@@ -98,7 +83,7 @@ print(f"Applied the v2.7.2 NMX {mode} port: {path}")elif mode == "kapi":
     ifb_trail("vbl");
     if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
     registerPowerDriver(this, kPowerStates, 2);''',
-    "initialize the primary NVKMS device after VBL startup",
+        "initialize the primary NVKMS device after VBL startup",
     )
 else:
     raise SystemExit(f"unknown mode: {mode}")

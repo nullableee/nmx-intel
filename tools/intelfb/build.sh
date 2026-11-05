@@ -89,7 +89,8 @@ xcrun clang++ -arch x86_64 -mmacosx-version-min=15.0 -fapple-kext -nostdlib -Xli
   -o "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB"
 cp "$W/src/Info.plist" "$W/out/NMIntelFB.kext/Contents/Info.plist"
 plutil -lint "$W/out/NMIntelFB.kext/Contents/Info.plist"
-nm "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB" | grep -q '_kmod_info' || { echo "STOP: linked kext has no _kmod_info" >&2; exit 1; }
-nm "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB" | grep -q 'gMetaClass' || { echo "STOP: IOKit metaclasses missing from linked kext" >&2; exit 1; }
+nm "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB" > "$W/out/nm-symbols.txt"
+grep -q '_kmod_info' "$W/out/nm-symbols.txt" || { echo "STOP: linked kext has no _kmod_info" >&2; exit 1; }
+grep -q 'gMetaClass' "$W/out/nm-symbols.txt" || { echo "STOP: IOKit metaclasses missing from linked kext" >&2; exit 1; }
 codesign -f -s - "$W/out/NMIntelFB.kext" >/dev/null 2>&1 || true
 echo "NMIntelFB $(shasum -a 256 "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB" | cut -c1-8) $(stat -f %z "$W/out/NMIntelFB.kext/Contents/MacOS/NMIntelFB") B ($REV)"

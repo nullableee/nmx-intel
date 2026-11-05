@@ -99,7 +99,7 @@
 +bool NMIntelFB::startReal(IOService *provider)
 +{
      fPCI = OSDynamicCast(IOPCIDevice, provider);
-@@ -370,23 +370,31 @@
+@@ -370,23 +370,29 @@
      fRegs = (volatile uint8_t *)fMMIO->getVirtualAddress();
 +    ifb_trail("mmio");
      fApertureBase = ap->getPhysicalAddress(); fApertureLen = ap->getLength();
@@ -108,7 +108,7 @@
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
      if (!IOFramebuffer::start(provider)) {
 +        ifb_trail("fb-start-failed");
-         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+         if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
          OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
      }
 +    ifb_trail("fb-started");
@@ -117,13 +117,10 @@
      if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
          fSurfMap = sm->map(kIOMapWriteCombineCache); sm->release();
      }
--    if (fSurfMap) {
-+    ifb_trail(fSurfMap ? "surf" : "surf-fail");
-+    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
+     if (fSurfMap) {
          setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
-+        ifb_trail("dep");
-     } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
+     }
      setProperty("NMIntelFBPipe", fPipe, 32);
      setProperty("NMIntelFBDisplayVersion", fVer, 32);
      setProperty("built-in", kOSBooleanTrue);   // the panel is the laptop's own (kConnectionFlags says so too)

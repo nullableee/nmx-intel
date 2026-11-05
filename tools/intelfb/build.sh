@@ -5,7 +5,7 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
-REV=${REV:-v2.7.1}   # NMIntelFB/intelfb.cpp and both shared ABI headers are byte-identical in v2.6.6 and v2.7.1
+REV=${REV:-v2.5.4}   # keep the last patch-tested base; try REV=v2.7.1 only after checking all intelfb patches apply
 W=$HOME/nmx-build/intelfb
 rm -rf "$W/src" "$W/out" && mkdir -p "$W/src" "$W/out/NMIntelFB.kext/Contents/MacOS"
 git -C "$NM" archive "$REV" kexts/NMIntelFB | tar -x -C "$W/src" --strip-components 2

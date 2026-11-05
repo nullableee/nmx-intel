@@ -9,6 +9,10 @@ on:
   push:
     branches:
       - upgrade/nullmoth-2.7.2
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 jobs:

@@ -70,12 +70,12 @@
  
  // kmutil places a kext in a kernel collection only with a _kmod_info symbol (Xcode generates it; this build does not)
  #include <mach/kmod.h>
-@@ -138,3 +138,4 @@
+@@ -176,3 +176,4 @@
      IOService *probe(IOService *provider, SInt32 *score) override;
      bool start(IOService *provider) override;
 +    bool startReal(IOService *provider);
      void stop(IOService *provider) override;
-@@ -285,3 +285,9 @@
+@@ -289,3 +289,9 @@
      fVer = displayVersion(dev);
      if (!fVer) return nullptr;   // an Intel GPU this driver does not know (older ones have Apple's own driver)
 +    if (ifb_nv_has("nullmoth-intelfb-attaching")) {
@@ -85,7 +85,7 @@
 +    }
 +    if (ifb_knob("nullmoth-intelfb", 1) == 0) { IFBLOG("off: nullmoth-intelfb=0"); return nullptr; }
      IFBLOG("8086:%04x display version %u", dev, fVer);
-@@ -363,2 +363,13 @@
+@@ -365,2 +365,13 @@
  #endif
 +    gIfbTrail[0] = 0;
 +    ifb_nv_set("nullmoth-intelfb-attaching", "1");

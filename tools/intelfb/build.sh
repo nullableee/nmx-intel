@@ -45,6 +45,8 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   echo "patch: $(basename "$p")"
   if [ "$(basename "$p")" = "intelfb-0011-nvkms-device-answers-nvaccel.patch" ]; then
     python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" kapi
+  elif [ "$(basename "$p")" = "intelfb-0014-agdc-lists-the-panel.patch" ]; then
+    python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" agdc
   fi
 done
 if [ "$REV" = "v2.7.2" ]; then

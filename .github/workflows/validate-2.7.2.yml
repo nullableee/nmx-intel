@@ -1,5 +1,5 @@
 name: NullMoth 2.7.2 port validation
-# Re-run patch-application diagnostics after the source-level rebase.
+# Re-run patch-application diagnostics after the source-level rebase and hunk-offset correction.
 
 concurrency:
   group: nullmoth-272-${{ github.ref }}

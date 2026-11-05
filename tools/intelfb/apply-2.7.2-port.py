@@ -218,6 +218,59 @@ static void ifb_agdc_register(bool on);''',
     if (gIfbAgdcLogged < 20)''',
         "answer AGDC link and plane-scaler queries",
     )
+elif mode == "nvdisplay":
+    replace_once(
+'''#include "nvrm-agdc-k5.h"
+#define NVRM_GPUVA_ABI_VERSION 1u
+#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
+struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };''',
+'''#include "nvrm-agdc-k5.h"
+#include "nvrm_gpuva_abi.h"''',
+        "use the upstream protected display-pointer ABI header",
+    )
+    replace_once(
+'''// The NVRMDisplay nubs NVRM publishes carry the NVKMS function table, the GPU id and RM's VA-to-physical lookup
+// (what NVRMFB starts from). Ownership is not grabbed: it is for mode sets, and NVRMFB may still hold it.''',
+'''// NVRM exposes the NVKMS function table and VA-to-physical lookup through nvDisplayPointers.
+// The NVRMDisplay nub supplies only gpu-id; keep returned kernel pointers private, never in IORegistry.''',
+        "document the protected pointer contract",
+    )
+    replace_once(
+'''    OSNumber *k = OSDynamicCast(OSNumber, nub->getProperty("nvkms-kapi"));
+    OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
+    OSNumber *pv = OSDynamicCast(OSNumber, nub->getProperty("phys-for-va"));
+    fKms = k ? (struct NvKmsKapiFunctionsTable *)(uintptr_t)k->unsigned64BitValue() : nullptr;
+    fPhysForVa = pv ? (NvU64 (*)(const void *))(uintptr_t)pv->unsigned64BitValue() : nullptr;
+    uint64_t bar = 0;
+    IOService *rm = nub->getProvider();''',
+'''    OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
+    IOService *rm = nub->getProvider();
+    struct NVRMDisplayPointers displayPtrs = {};
+    displayPtrs.version = NVRM_DISPLAY_PTRS_ABI_VERSION;
+    const OSSymbol *displayPtrsFn = OSSymbol::withCString(NVRM_DISPLAY_PTRS_FN);
+    IOReturn displayPtrsResult = kIOReturnNotFound;
+    if (rm && displayPtrsFn)
+        displayPtrsResult = rm->callPlatformFunction(displayPtrsFn, false, &displayPtrs, NULL, NULL, NULL);
+    if (displayPtrsFn) displayPtrsFn->release();
+    fKms = displayPtrsResult == kIOReturnSuccess
+        ? (struct NvKmsKapiFunctionsTable *)displayPtrs.kapi : nullptr;
+    fPhysForVa = displayPtrsResult == kIOReturnSuccess
+        ? (NvU64 (*)(const void *))displayPtrs.physForVa : nullptr;
+    uint64_t bar = 0;''',
+        "obtain NVKMS pointers through nvDisplayPointers",
+    )
+    replace_once(
+'''        ifb_trail("kapi-none"); IFBLOG("kapi: nub lacks nvkms-kapi/gpu-id/phys-for-va or BAR1 (%llu)", bar); nub->release(); return;''',
+'''        ifb_trail("kapi-none"); IFBLOG("kapi: nvDisplayPointers failed (0x%x), gpu-id or BAR1 missing (%llu)",
+                                      (unsigned)displayPtrsResult, bar); nub->release(); return;''',
+        "report protected pointer API failure",
+    )
+    replace_once(
+'''        static const char *const kCopy[] = {"nvkms-kapi", "gpu-id", "phys-for-va"};''',
+'''        // Kernel pointers are obtained from the NVRM provider through nvDisplayPointers; never publish them in IORegistry.
+        static const char *const kCopy[] = {"gpu-id"};''',
+        "stop copying kernel pointers into the synthetic display nub",
+    )
 else:
     raise SystemExit(f"unknown mode: {mode}")
 

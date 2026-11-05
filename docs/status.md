@@ -10,7 +10,7 @@
 - The NMX AGDC timing/link path has been rebased. The four NMX NVAccel patches apply to a clean v2.7.2 worktree.
 - CI on macOS 15 / Xcode 16.4 compiled NMIntelFB and built NVAccel for both macOS 15 and 26. This verifies source patch application and compilation only; it does not establish runtime or display compatibility.
 - NMIntelFB CI artifact: `c40f9c77`, 120,544 bytes.
-- NVAccel CI artifacts: macOS 15 `ce79ccff`; macOS 26 `6dbc226e`. Patched NVAccel source head: `67a1b04`, VRAM ABI 2.
+- NVAccel CI artifacts: macOS 15 `ce79ccff`; macOS 26 `6dbc226e`. Patched NVAccel source head: `28c7edc`, VRAM ABI 2.
 - `tools/upgrade/build-2.7.2.sh` builds both components. `tools/upgrade/install-2.7.2.sh` backs up the existing kexts, checks for the protected pointer API in installed NVRM/NVRMFB, and can restore the saved NMIntelFB/NVAccel kexts.
 - Installer is deliberately Sequoia 15-only. Tahoe 26 has an NVAccel build, but the NMIntelFB/AGDC private ABI has not been validated or boot-tested on Tahoe.
 - NVRM byte patch remains disabled: no exact official 2.7.2 package hash, disassembly, offsets, or call-target verification.

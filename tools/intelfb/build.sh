@@ -29,7 +29,12 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
         continue
       fi ;;
   esac
-  if ! patch --verbose -l -d "$W/src" -p1 < "$p"; then
+  if [ "$(basename "$p")" = "intelfb-0003-dependent-id-before-start.patch" ]; then
+    if ! git -C "$W/src" apply --verbose --ignore-space-change --ignore-whitespace -p1 "$p"; then
+      echo "git apply failed for $p" >&2
+      exit 1
+    fi
+  elif ! patch --verbose -l -d "$W/src" -p1 < "$p"; then
     echo "SOURCE CONTEXT AROUND THE REJECT:" >&2
     nl -ba "$W/src/intelfb.cpp" | sed -n '440,500p' >&2
     for rej in "$W/src"/*.rej; do

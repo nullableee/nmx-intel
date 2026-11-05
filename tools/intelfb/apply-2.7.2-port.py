@@ -133,9 +133,7 @@ static bool ifb_pci_ok(IOPCIDevice *pci, uint8_t *ver);''',
         "unregister AGDC when the synthetic framebuffer stops",
     )
     replace_once(
-'''    } else ifb_trail("no-pm");
-    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
-'''    } else ifb_trail("no-pm");
+'''    ifb_trail("power");
     if (gIfbNubFB == this) ifb_agdc_register(true);
     IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
         "register the synthetic Intel panel with AGDC",

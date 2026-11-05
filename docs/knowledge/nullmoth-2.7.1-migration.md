@@ -15,12 +15,12 @@ The upstream compare contains 125 commits. The following exact Git blob IDs are 
 | `kexts/NVRM/nvrm_gpuva_abi.h` | `e26646c7ac3c1ec02366366ea7476d3acb2b11c1` | unchanged; GPUVA ABI version 1, flip ABI version 2 |
 | `kexts/NVRM/nvrm_pageoff.c` | `b0c2fdb7c2f63ed327849611f04ab5c47ae9162b` | unchanged |
 
-The release diff changes `kexts/NVRM/os-xnu.cpp` (27 additions, 4 deletions), plus the user-space Metal plugin/translator, installer, and supporting files. The upstream README still specifies NVIDIA open-gpu-kernel-modules tag `615.78.08`, matching the NMX build scripts' current OGKM target.
+The v2.6.6 → v2.7.1 release diff changes `kexts/NVRM/os-xnu.cpp` (27 additions, 4 deletions), plus the user-space Metal plugin/translator, installer, and supporting files. The wider v2.6.4 → v2.7.1 diff also changes `kexts/NVRM/accel/nvrm-accel.cpp` (29 additions): it adds `gpuHasMetalAccelerator()` and changes headless-display detection so another GPU is treated as the desktop owner only if it has an accelerator exposing `MetalPluginName`. The existing `NMIntelFB` class special-case remains before this new check, but the actual NMX IORegistry placement still needs confirmation on the target Mac. The upstream README still specifies NVIDIA open-gpu-kernel-modules tag `615.78.08`, matching the NMX build scripts' current OGKM target.
 
 ### Consequences for NMX
 
 - **NMIntelFB:** its upstream source and both shared ABI headers are byte-identical to 2.6.6. The build script default is now `REV=v2.7.1`. This establishes source compatibility, not runtime validation; rebuild on the Mac and compare the resulting binary hash with the installed one.
-- **NVAccel:** upstream `kexts/NVRM/accel/` is not changed in the v2.6.6 → v2.7.1 compare, and the shared ABI headers are identical. The 2.6.4 NMX patch series should therefore be tried unchanged on a clean 2.7.1 worktree. Do not mark it supported until `git am -3`, build for macOS 15 and 26, compare symbols/strings/sections, and check all NMX sysctls.
+- **NVAccel:** the 2.6.4 → 2.7.1 history does change `nvrm-accel.cpp` in the headless-display-owner logic; it is not a no-op upgrade. The existing NMX patch series must first be applied to its original 2.6.4 base, then replayed onto 2.7.1 with three-way cherry-picks. Review the headless-check interaction, build for macOS 15 and 26, compare symbols/strings/sections, and check all NMX sysctls before support is claimed.
 - **NVRM copy-engine patch:** `nvrm_pageoff.c` is byte-identical, and the contiguous-run wait still uses the 200000-spin timeout and `osDelayUs(10)`. However, `os-xnu.cpp` changed, which can move code and symbols in the packaged NVRM binary. The 2.6.4 file offsets, rel32 displacement, and SHA-256 must not be reused. The second per-page fallback wait loop also remains in the source; the existing NMX patch description targets only the contiguous-run path.
 - **Installer:** 2.7.1 changes `package/install.sh`; read and verify the official package before installation. The release also fixes permissions on `/Library/NullMoth` for the ARM translator.
 
@@ -32,7 +32,7 @@ From the NMX repository root:
 bash tools/upgrade/prepare-2.7.1.sh
 ```
 
-The helper creates a clean `v2.7.1` worktree and attempts to replay the existing `source-fixes/accel/v2.6.4/*.patch` series with `git am -3`. If a patch conflicts, resolve it in the worktree and do not export a new series until the build passes. The script refuses to overwrite an existing worktree or reuse a dirty source clone.
+The helper creates a clean `v2.6.4` patch-base worktree, applies `source-fixes/accel/v2.6.4/*.patch` there with `git am -3`, then creates a clean `v2.7.1` worktree and cherry-picks those patch commits with `-x`. If either stage conflicts, resolve it in the indicated worktree and inspect the result; do not export a new series until the build passes. The script refuses to overwrite an existing worktree or reuse a dirty source clone.
 
 After the patches apply:
 

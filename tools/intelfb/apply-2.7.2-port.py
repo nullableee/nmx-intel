@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 if len(sys.argv) not in (2, 3):
-    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp [early|kapi|agdc]")
+    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp [early|kapi|agdc|k5]")
 
 path = Path(sys.argv[1])
 mode = sys.argv[2] if len(sys.argv) == 3 else "early"
@@ -160,6 +160,64 @@ static bool ifb_pci_ok(IOPCIDevice *pci, uint8_t *ver);''',
             raise SystemExit("STOP: Info.plist graphics dependency anchor not found exactly once")
         info = info.replace(key, key + '\n    <key>com.apple.AppleGraphicsDeviceControl</key><string>1.0.0</string>', 1)
         plist.write_text(info)
+elif mode == "k5":
+    k5_header = "/*\n * NullMoth NVIDIA driver for macOS\n * Copyright (c) 2026 NullMoth Systems.\n * SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0\n */\n\n#ifndef NVRM_AGDC_K5_H\n#define NVRM_AGDC_K5_H\n#include <stdint.h>\n\n#define NVK5_CMD_LINKCONFIG   0x921u\n#define NVK5_CMD_FBCAPEX      0x711u\n#define NVK5_CAP_PLANESCALER  0x10u\n#define NVK5_TIMING_TAG       0x4b350001u\n#define NVK5_TIMING_WORDS     13\n\nenum { NVK5_T_TAG, NVK5_T_PCLK, NVK5_T_HVIS, NVK5_T_HSS, NVK5_T_HSE, NVK5_T_HTOT, NVK5_T_VVIS, NVK5_T_VSS, NVK5_T_VSE, NVK5_T_VTOT,\n       NVK5_T_REFRESH_MHZ, NVK5_T_HSYNCPOS, NVK5_T_VSYNCPOS };\n\n#pragma pack(push, 1)\nstruct NVAGDCTiming {\n    uint32_t hScaledInset, vScaledInset, scalerFlags, hScaled, vScaled, signalConfig, signalLevels;\n    uint64_t pixelClock, minPixelClock, maxPixelClock;\n    uint32_t hActive, hBlanking, hSyncOffset, hSyncPulseWidth;\n    uint32_t vActive, vBlanking, vSyncOffset, vSyncPulseWidth;\n    uint32_t hBorderLeft, hBorderRight, vBorderTop, vBorderBottom;\n    uint32_t hSyncConfig, hSyncLevel, vSyncConfig, vSyncLevel;\n    uint32_t numLinks, vBlankingExtension;\n    uint16_t pixelEncoding, bitsPerColorComponent, colorimetry, dynamicRange;\n    uint16_t dscBitsPerPixel, dscSliceHeight, dscSliceWidth, field8a;\n    uint8_t  tail[8];\n};\nstruct NVAGDCLinkConfig {\n    int32_t  id;\n    int32_t  groupID;\n    uint64_t flags;\n    struct NVAGDCTiming timing;\n    uint32_t port, stream;\n    uint32_t state;\n};\nstruct NVAGDCFBExtCap {\n    uint32_t fbIndex, type, count;\n    uint8_t  entry[8][0x32c];\n};\n#pragma pack(pop)\n_Static_assert(sizeof(struct NVAGDCTiming) == 0x94, \"AGDC timing is 0x94\");\n_Static_assert(sizeof(struct NVAGDCLinkConfig) == 0xb0, \"AGDCLinkConfig_t is 0xb0\");\n_Static_assert(__builtin_offsetof(struct NVAGDCLinkConfig, port) == 0xa4, \"stream address at +0xa4\");\n_Static_assert(sizeof(struct NVAGDCFBExtCap) == 0x196c, \"AGDCFBGetExtendedCapability_t is 0x196c\");\n\nstatic inline void nvk5_zero(void *p, unsigned long n) { uint8_t *b = (uint8_t *)p; while (n--) *b++ = 0; }\nstatic inline void nvk5_put32(uint8_t *e, unsigned off, uint32_t v) { e[off] = (uint8_t)v; e[off+1] = (uint8_t)(v >> 8); e[off+2] = (uint8_t)(v >> 16); e[off+3] = (uint8_t)(v >> 24); }\n\nstatic inline int nvk5_timing_bad(const uint32_t *t, unsigned long bytes)\n{\n    if (!t || bytes != NVK5_TIMING_WORDS * sizeof(uint32_t)) return 1;\n    if (t[NVK5_T_TAG] != NVK5_TIMING_TAG) return 2;\n    if (!t[NVK5_T_PCLK] || !t[NVK5_T_HVIS] || !t[NVK5_T_VVIS]) return 3;\n    if (!(t[NVK5_T_HVIS] <= t[NVK5_T_HSS] && t[NVK5_T_HSS] < t[NVK5_T_HSE] && t[NVK5_T_HSE] <= t[NVK5_T_HTOT])) return 4;\n    if (!(t[NVK5_T_VVIS] <= t[NVK5_T_VSS] && t[NVK5_T_VSS] < t[NVK5_T_VSE] && t[NVK5_T_VSE] <= t[NVK5_T_VTOT])) return 5;\n    if (t[NVK5_T_HTOT] == t[NVK5_T_HVIS] || t[NVK5_T_VTOT] == t[NVK5_T_VVIS]) return 6;\n    return 0;\n}\n\nstatic inline void nvk5_fill_link(struct NVAGDCLinkConfig *l, const uint32_t *t)\n{\n    int32_t id = l->id; nvk5_zero(l, sizeof *l); l->id = id;\n    l->groupID = -1;\n    l->flags = 0x8 | 0x1 | 0x2;\n    struct NVAGDCTiming *g = &l->timing;\n    g->pixelClock = g->minPixelClock = g->maxPixelClock = t[NVK5_T_PCLK];\n    g->hActive = t[NVK5_T_HVIS]; g->hBlanking = t[NVK5_T_HTOT] - t[NVK5_T_HVIS];\n    g->hSyncOffset = t[NVK5_T_HSS] - t[NVK5_T_HVIS]; g->hSyncPulseWidth = t[NVK5_T_HSE] - t[NVK5_T_HSS];\n    g->vActive = t[NVK5_T_VVIS]; g->vBlanking = t[NVK5_T_VTOT] - t[NVK5_T_VVIS];\n    g->vSyncOffset = t[NVK5_T_VSS] - t[NVK5_T_VVIS]; g->vSyncPulseWidth = t[NVK5_T_VSE] - t[NVK5_T_VSS];\n    g->hSyncConfig = t[NVK5_T_HSYNCPOS] ? 1 : 0; g->vSyncConfig = t[NVK5_T_VSYNCPOS] ? 1 : 0;\n    g->numLinks = 1;\n    g->pixelEncoding = 0x0001;\n    g->bitsPerColorComponent = 0x0002;\n    g->colorimetry = 0x0001;\n    g->dynamicRange = 0x0001;\n    l->port = 1; l->stream = 0;\n    l->state = 1;\n}\nstatic inline void nvk5_fill_link_port(struct NVAGDCLinkConfig *l, const uint32_t *t, uint32_t port)\n{\n    nvk5_fill_link(l, t); l->port = port;\n}\n\nstatic inline void nvk5_fill_planescaler(struct NVAGDCFBExtCap *c, const uint32_t *t)\n{\n    uint32_t idx = c->fbIndex, type = c->type; nvk5_zero(c, sizeof *c); c->fbIndex = idx; c->type = type;\n    c->count = 1;\n    uint8_t *e = c->entry[0]; uint32_t w = t[NVK5_T_HVIS], h = t[NVK5_T_VVIS];\n    nvk5_put32(e, 0x000, 0x80004);\n    nvk5_put32(e, 0x004, 0);\n    nvk5_put32(e, 0x01c, 1);\n    nvk5_put32(e, 0x024, h); nvk5_put32(e, 0x028, w); nvk5_put32(e, 0x02c, h); nvk5_put32(e, 0x030, w);\n    nvk5_put32(e, 0x034, 0x70007);\n    nvk5_put32(e, 0x038, 0);\n    nvk5_put32(e, 0x1a4, 1);\n    nvk5_put32(e, 0x1ac, h); nvk5_put32(e, 0x1b0, w); nvk5_put32(e, 0x1b4, h); nvk5_put32(e, 0x1b8, w);\n    nvk5_put32(e, 0x1bc, 0x70007);\n    nvk5_put32(e, 0x1c0, 0);\n}\n\n#define NVK5_R_UNSUPPORTED  0\n#define NVK5_R_LINK         1\n#define NVK5_R_CAPS         2\n#define NVK5_R_BADARG     (-1)\n#define NVK5_R_NOTFOUND   (-2)\nstruct nvk5_head { const uint32_t *t; unsigned long tBytes; };\nstatic inline int nvk5_answer_heads(unsigned cmd, const void *in, unsigned long inSize, void *out, unsigned long outSize,\n                                    const struct nvk5_head *h, unsigned nh, int *why, int32_t *idxOut)\n{\n    *idxOut = -1;\n    if (cmd != NVK5_CMD_LINKCONFIG && cmd != NVK5_CMD_FBCAPEX) return NVK5_R_UNSUPPORTED;\n    const int link = cmd == NVK5_CMD_LINKCONFIG;\n    const unsigned long want = link ? sizeof(struct NVAGDCLinkConfig) : sizeof(struct NVAGDCFBExtCap);\n    if (!out || outSize != want) { *why = link ? 0x10 : 0x20; return NVK5_R_BADARG; }\n    if (!in || inSize != want) { *why = link ? 0x12 : 0x22; return NVK5_R_BADARG; }\n    if (in != out) {\n        const uint8_t *s = (const uint8_t *)in; uint8_t *d = (uint8_t *)out; unsigned long n = want;\n        if (d < s) while (n--) *d++ = *s++; else while (n--) d[n] = s[n];\n    }\n    uint32_t idx = link ? (uint32_t)((struct NVAGDCLinkConfig *)out)->id : ((struct NVAGDCFBExtCap *)out)->fbIndex;\n    *idxOut = (int32_t)idx;\n    if (!link && ((struct NVAGDCFBExtCap *)out)->type != NVK5_CAP_PLANESCALER) return NVK5_R_UNSUPPORTED;\n    if (idx >= nh) { *why = link ? 0x11 : 0x21; return NVK5_R_BADARG; }\n    const uint32_t *t = h[idx].t;\n    int bad = t ? nvk5_timing_bad(t, h[idx].tBytes) : 0x31;\n    if (bad) { *why = bad; return NVK5_R_NOTFOUND; }\n    if (link) { nvk5_fill_link_port((struct NVAGDCLinkConfig *)out, t, 1u + idx); return NVK5_R_LINK; }\n    nvk5_fill_planescaler((struct NVAGDCFBExtCap *)out, t); return NVK5_R_CAPS;\n}\nstatic inline int nvk5_answer(unsigned cmd, const void *in, unsigned long inSize, void *out, unsigned long outSize,\n                              const uint32_t *t, unsigned long tBytes, int *why)\n{\n    struct nvk5_head h0 = { t, tBytes }; int32_t idx;\n    return nvk5_answer_heads(cmd, in, inSize, out, outSize, &h0, 1, why, &idx);\n}\n#endif\n"
+    (root / "nvrm-agdc-k5.h").write_text(k5_header)
+    replace_once(
+'''#include "AppleGraphicsDeviceControl_re.h"
+#define NVRM_GPUVA_ABI_VERSION 1u''',
+'''#include "AppleGraphicsDeviceControl_re.h"
+#include "nvrm-agdc-k5.h"
+#define NVRM_GPUVA_ABI_VERSION 1u''',
+        "include the AGDC link and plane-scaler ABI",
+    )
+    replace_once(
+'''static IOService *gIfbNubFB = nullptr;
+static void ifb_agdc_register(bool on);''',
+'''static IOService *gIfbNubFB = nullptr;
+static uint32_t gIfbK5[NVK5_TIMING_WORDS];
+static void ifb_agdc_register(bool on);''',
+        "NVRM timing state",
+    )
+    replace_once(
+'''    ifb_trail("power");
+    if (gIfbNubFB == this) ifb_agdc_register(true);
+    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
+'''    ifb_trail("power");
+    if (gIfbNubFB == this) {
+        const uint32_t k5[NVK5_TIMING_WORDS] = { NVK5_TIMING_TAG, (uint32_t)fPclk, fWidth, fHSS, fHSE, fHT, fHeight, fVSS, fVSE, fVT,
+                                                 (uint32_t)(((uint64_t)fRefresh16 * 1000) >> 16), 1, 1 };
+        memcpy(gIfbK5, k5, sizeof k5);
+        if (OSData *d = OSData::withBytes(k5, sizeof k5)) { setProperty("NVRMTiming", d); d->release(); }
+        int bad = nvk5_timing_bad(gIfbK5, sizeof gIfbK5);
+        IFBLOG("K5 timing: pclk %u %ux%u h %u-%u/%u v %u-%u/%u %u mHz%s", k5[1], fWidth, fHeight, fHSS, fHSE, fHT, fVSS, fVSE, fVT,
+               k5[10], bad ? " - REJECTED by nvk5_timing_bad" : "");
+        ifb_agdc_register(true);
+    }
+    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
+        "publish the Intel panel timing before AGDC registration",
+    )
+    replace_once(
+'''        IFB_ONCE("agdc-980");
+        return kIOReturnSuccess;
+    }
+    if (gIfbAgdcLogged < 20)''',
+'''        IFB_ONCE("agdc-980");
+        return kIOReturnSuccess;
+    }
+    if (cmd == NVK5_CMD_LINKCONFIG || cmd == NVK5_CMD_FBCAPEX) {
+        int why = 0;
+        int r = nvk5_answer(cmd, in, inSize, out, outSize ? *outSize : 0, gIfbK5, sizeof gIfbK5, &why);
+        if (r == NVK5_R_LINK) { IFB_ONCE("k5-link"); return kIOReturnSuccess; }
+        if (r == NVK5_R_CAPS) { IFB_ONCE("k5-caps"); return kIOReturnSuccess; }
+        if (r != NVK5_R_UNSUPPORTED) {
+            if (gIfbAgdcLogged < 20) { gIfbAgdcLogged++; IFBLOG("AGDC K5: command %#x not answered (why %#x)", cmd, why); }
+            return r == NVK5_R_BADARG ? kIOReturnBadArgument : kIOReturnNotFound;
+        }
+    }
+    if (gIfbAgdcLogged < 20)''',
+        "answer AGDC link and plane-scaler queries",
+    )
 else:
     raise SystemExit(f"unknown mode: {mode}")
 

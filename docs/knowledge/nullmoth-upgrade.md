@@ -6,7 +6,7 @@
 > runbook; UPG-1 (2.1.0 → 2.3.6) in [../tests/rtx-8-accelerated-desktop.md](../tests/rtx-8-accelerated-desktop.md)
 > is the worked example; UPG-2 (2.3.6 → 2.5.0, NVIDIA 610 → 615) the one with an OGKM change.
 
-**Current target: [NullMoth 2.7.1 migration](nullmoth-2.7.1-migration.md).** The source audit confirms NMIntelFB, both shared ABI headers, and nvrm_pageoff.c are unchanged from 2.6.6. Since the NMX patch base is 2.6.4, note that nvrm-accel.cpp also gained a headless-display-owner check between 2.6.4 and 2.7.1; the helper rebases the patch series through both versions. os-xnu.cpp and the installer changed. The NMIntelFB builder now defaults to v2.7.1. The NVRM byte patch remains intentionally unsupported until the exact packaged binary hash and offsets are measured. Use tools/upgrade/prepare-2.7.1.sh to create the NVAccel rebase worktree on a Mac build host.
+**Current target: [NullMoth 2.7.1 migration](nullmoth-2.7.1-migration.md).** The source audit confirms NMIntelFB, both shared ABI headers, and nvrm_pageoff.c are unchanged from 2.6.6. Since the NMX patch base is 2.6.4, note that nvrm-accel.cpp also gained a headless-display-owner check between 2.6.4 and 2.7.1; the helper rebases the patch series through both versions. os-xnu.cpp and the installer changed. The NMIntelFB builder retains v2.5.4 as its default until the backlight changes and NMX patches are verified. The NVRM byte patch remains intentionally unsupported until the exact packaged binary hash and offsets are measured. Use tools/upgrade/prepare-2.7.1.sh to create the NVAccel rebase worktree on a Mac build host.
 
 ## What we carry on top of a release
 

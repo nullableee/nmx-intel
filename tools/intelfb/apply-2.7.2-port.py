@@ -134,6 +134,8 @@ static bool ifb_pci_ok(IOPCIDevice *pci, uint8_t *ver);''',
     )
     replace_once(
 '''    ifb_trail("power");
+    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
+'''    ifb_trail("power");
     if (gIfbNubFB == this) ifb_agdc_register(true);
     IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
         "register the synthetic Intel panel with AGDC",

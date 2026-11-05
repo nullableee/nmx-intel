@@ -1,5 +1,9 @@
 name: NullMoth 2.7.2 port validation
 
+concurrency:
+  group: nullmoth-272-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:

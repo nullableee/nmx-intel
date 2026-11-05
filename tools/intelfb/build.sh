@@ -31,7 +31,7 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
       fi ;;
   esac
   if [ "$(basename "$p")" = "intelfb-0003-dependent-id-before-start.patch" ]; then
-    python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp"
+    python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" early
   elif ! patch --verbose -l -d "$W/src" -p1 < "$p"; then
     echo "SOURCE CONTEXT AROUND THE REJECT:" >&2
     nl -ba "$W/src/intelfb.cpp" | sed -n '440,500p' >&2
@@ -43,6 +43,9 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
     exit 1
   fi
   echo "patch: $(basename "$p")"
+  if [ "$(basename "$p")" = "intelfb-0011-nvkms-device-answers-nvaccel.patch" ]; then
+    python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" kapi
+  fi
 done
 if [ "$REV" = "v2.7.2" ]; then
   grep -Fq 'NVRMDisplayPointers displayPtrs' "$W/src/intelfb.cpp" || { echo "STOP: protected display-pointer call was not applied" >&2; exit 1; }

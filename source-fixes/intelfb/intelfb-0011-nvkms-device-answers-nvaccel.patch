@@ -36,7 +36,7 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
      armVbl();
      ifb_trail("vbl");
 +    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
-@@ -565,14 +586,132 @@
+@@ -565,12 +586,130 @@
      fVblOn = false;
      thread_wakeup((event_t)&fVblNext);
      while (fVblRunning) IOSleep(5);
@@ -46,9 +46,10 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
      OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr;
      IOFramebuffer::stop(provider);
  }
-     IOFramebuffer::stop(provider);
- }
  
+ IODeviceMemory *NMIntelFB::getApertureRange(IOPixelAperture aperture)
+ {
+     IFB_ONCE("apr");
 +// intelfb-0011. The table of VRAM blocks handed to NVAccel (one NMIntelFB per machine).
 +struct IfbVram { struct NvKmsKapiMemory *m; void *k; uint64_t n, cookie; };
 +static IfbVram gIfbVram[2048];
@@ -166,9 +167,6 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +    return kIOReturnBadArgument;
 +}
 +
- IODeviceMemory *NMIntelFB::getApertureRange(IOPixelAperture aperture)
- {
-     IFB_ONCE("apr");
 @@ -629,6 +768,21 @@
          r->phys = 0; r->actualSize = 0;
          r->width = fWidth; r->height = fHeight; r->pitch = fRowBytes;

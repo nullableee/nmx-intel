@@ -1,8 +1,10 @@
 --- a/intelfb.cpp
 +++ b/intelfb.cpp
-@@ -23,1 +23,2 @@
+@@ -22,3 +22,4 @@
+ #include <IOKit/IOWorkLoop.h>
  #include <kern/thread_call.h>
 +#include <kern/sched_prim.h>
+ #include <sys/sysctl.h>
 @@ -104,18 +105,26 @@
  
  // intelfb-0006: heartbeat every second for three minutes after start(): "nullmoth-intelfb-beat" = ms since start, VBL

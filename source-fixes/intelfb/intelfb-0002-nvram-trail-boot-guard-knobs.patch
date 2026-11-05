@@ -108,7 +108,7 @@
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
      if (!IOFramebuffer::start(provider)) {
 +        ifb_trail("fb-start-failed");
-         if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
          OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
      }
 +    ifb_trail("fb-started");
@@ -120,7 +120,7 @@
      if (fSurfMap) {
          setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
-     }
+     } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
      setProperty("NMIntelFBPipe", fPipe, 32);
      setProperty("NMIntelFBDisplayVersion", fVer, 32);
      setProperty("built-in", kOSBooleanTrue);   // the panel is the laptop's own (kConnectionFlags says so too)

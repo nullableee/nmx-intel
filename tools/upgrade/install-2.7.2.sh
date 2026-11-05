@@ -23,8 +23,14 @@ trap cleanup EXIT
 
 MAJOR=$(sw_vers -productVersion | cut -d. -f1)
 case "$MAJOR" in
-  15|26) ;;
-  *) echo "Unsupported macOS major version $MAJOR; expected Sequoia 15 or Tahoe 26." >&2; exit 1 ;;
+  15) ;;
+  26)
+    if [ "$MODE" = install ]; then
+      echo "STOP: Tahoe 26 is not boot-validated for the NMX Intel framebuffer/AGDC bridge yet." >&2
+      echo "The NVAccel 26 build is available, but this installer remains Sequoia-only until the AGDC ABI is validated." >&2
+      exit 1
+    fi ;;
+  *) echo "Unsupported macOS major version $MAJOR; expected Sequoia 15." >&2; exit 1 ;;
 esac
 
 for k in NVRM NVRMFB NVAccel NMIntelFB; do

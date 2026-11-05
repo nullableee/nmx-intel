@@ -18,6 +18,9 @@ if [ ! -f "$CC" ]; then
   echo "cc -D_LANGUAGE_C -D__NO_CTYPE -DNVRM -DLOCK_VAL_ENABLED=0 -DPORT_ATOMIC_64_BIT_SUPPORTED=1 -DPORT_IS_KERNEL_BUILD=1 -DPORT_IS_CHECKED_BUILD=0 -DPORT_MODULE_atomic=1 -DPORT_MODULE_core=1 -DPORT_MODULE_cpu=1 -DPORT_MODULE_crypto=1 -DPORT_MODULE_debug=1 -DPORT_MODULE_memory=1 -DPORT_MODULE_safe=1 -DPORT_MODULE_string=1 -DPORT_MODULE_sync=1 -DPORT_MODULE_thread=1 -DPORT_MODULE_time=1 -DPORT_MODULE_util=1 -DPORT_MODULE_example=0 -DPORT_MODULE_mmio=0 -DRS_STANDALONE=0 -DRS_STANDALONE_TEST=0 -DRS_COMPATABILITY_MODE=1 -DRS_PROVIDES_API_STATE=0 -DNV_CONTAINERS_NO_TEMPLATES -DNV_PRINTF_STRINGS_ALLOWED=1 -DNV_ASSERT_FAILED_USES_STRINGS=1 -DPORT_ASSERT_FAILED_USES_STRINGS=1 -DNV_X86_64 -DNV_ARCH_BITS=64 -DNVCPU_X86_64 -DNV_UNIX" > "$CC"
 fi
 rm -rf "$OUT"
-( cd "$SRC" && OGKM="$OGKM" bash build/accel_build.sh kexts/NVRM "$OUT" ) || { echo "build failed: $OUT/accel.err"; exit 1; }
-B=$OUT/NVAccel.kext/Contents/MacOS/NVAccel
-echo "NVAccel $(shasum -a 256 "$B" | cut -c1-8)  branch $(git -C "$SRC" rev-parse --short HEAD)"
+( cd "$SRC" && OGKM="$OGKM" bash build/accel_build_all.sh kexts/NVRM "$OUT" ) || { echo "build failed: $OUT/15/accel.err or $OUT/26/accel.err"; exit 1; }
+for major in 15 26; do
+  B="$OUT/$major/NVAccel.kext/Contents/MacOS/NVAccel"
+  [ -f "$B" ] || { echo "missing macOS $major NVAccel binary: $B" >&2; exit 1; }
+  echo "NVAccel macOS $major $(shasum -a 256 "$B" | cut -c1-8)  branch $(git -C "$SRC" rev-parse --short HEAD)"
+done

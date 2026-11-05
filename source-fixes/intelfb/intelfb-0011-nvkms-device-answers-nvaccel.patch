@@ -1,7 +1,9 @@
 diff -ruN a/intelfb.cpp src/intelfb.cpp
 --- a/intelfb.cpp	2026-10-16 19:35:46
 +++ b/intelfb.cpp	2026-10-16 19:35:57
-@@ -19,1 +19,8 @@
+@@ -17,3 +17,10 @@
+ #include <IOKit/ndrvsupport/IOMacOSVideo.h>
+ #include <libkern/OSAtomic.h>
  #include "nvrm_vram_abi.h"
 +// NVKMS kernel API and the RM-handles ABI answered to NVAccel by the primary framebuffer.
 +extern "C" {
@@ -31,7 +33,7 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
      static void vblThread(void *p0, wait_result_t) {
          NMIntelFB *me = (NMIntelFB *)p0;
          uint64_t period; nanoseconds_to_absolutetime(me->fFrameNs, &period);
-@@ -545,3 +545,4 @@
+@@ -548,3 +548,4 @@
      setProperty("built-in", kOSBooleanTrue);   // the panel is the laptop's own (kConnectionFlags says so too)
      armVbl();
      ifb_trail("vbl");

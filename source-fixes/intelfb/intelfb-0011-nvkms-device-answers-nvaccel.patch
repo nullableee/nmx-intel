@@ -47,9 +47,6 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
      IOFramebuffer::stop(provider);
  }
  
- IODeviceMemory *NMIntelFB::getApertureRange(IOPixelAperture aperture)
- {
-     IFB_ONCE("apr");
 +// intelfb-0011. The table of VRAM blocks handed to NVAccel (one NMIntelFB per machine).
 +struct IfbVram { struct NvKmsKapiMemory *m; void *k; uint64_t n, cookie; };
 +static IfbVram gIfbVram[2048];
@@ -167,6 +164,9 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +    return kIOReturnBadArgument;
 +}
 +
+ IODeviceMemory *NMIntelFB::getApertureRange(IOPixelAperture aperture)
+ {
+     IFB_ONCE("apr");
 @@ -629,6 +768,21 @@
          r->phys = 0; r->actualSize = 0;
          r->width = fWidth; r->height = fHeight; r->pitch = fRowBytes;

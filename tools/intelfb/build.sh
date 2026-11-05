@@ -24,11 +24,12 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
     intelfb-0022-nvdisplaypointers.patch:*)
       echo "skip: nvDisplayPointers patch is specific to v2.7.2"
       continue ;;
+    intelfb-0023-nvdisplaypointers-2.7.2.patch:v2.7.2)
+      echo "apply: protected nvDisplayPointers migration through exact-context helper"
+      continue ;;
     intelfb-0023-nvdisplaypointers-2.7.2.patch:*)
-      if [ "$REV" != "v2.7.2" ]; then
-        echo "skip: rebased nvDisplayPointers patch is specific to v2.7.2"
-        continue
-      fi ;;
+      echo "skip: rebased nvDisplayPointers patch is specific to v2.7.2"
+      continue ;;
     intelfb-0014-agdc-lists-the-panel.patch:v2.7.2|intelfb-0015-agdc-link-and-plane-scaler.patch:v2.7.2)
       echo "apply: AGDC compatibility through exact-context 2.7.2 helper"
       continue ;;
@@ -54,6 +55,7 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   fi
 done
 if [ "$REV" = "v2.7.2" ]; then
+  python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" nvdisplay
   grep -Fq 'NVRMDisplayPointers displayPtrs' "$W/src/intelfb.cpp" || { echo "STOP: protected display-pointer call was not applied" >&2; exit 1; }
   grep -Fq 'NVRM_DISPLAY_PTRS_FN' "$W/src/intelfb.cpp" || { echo "STOP: nvDisplayPointers ABI symbol missing" >&2; exit 1; }
   if grep -Eq '"nvkms-kapi"|"phys-for-va"' "$W/src/intelfb.cpp"; then

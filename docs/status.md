@@ -1,49 +1,40 @@
 # Status
 
-> **Summary.** Last updated 2026-10-30. Daily setup is the **WhateverXe hybrid** (XE-8 works, much cooler per
-> Lukas): the Iris Xe drives the desktop with Metal at 60 Hz, the RTX runs nullmoth headless and only apps listed by
-> `ondemand.sh` open it. Brightness works. Now: WIFI-9 (boot panic fix) and XE-10 (`noboost`); then XE-9 battery.
+> **Summary.** Last updated 2026-11-05. NullMoth 2.7.2 has superseded the unfinished 2.7.1 migration. The original
+> Intel-panel bridge remains proven only on 2.3.6. The 2.7.2 source audit found a display-pointer API/security change
+> that requires an NMX bridge port before build or install.
 
-## Daily setup (how the machine boots now)
+## NullMoth 2.7.2 migration (blocked at source port)
 
-- OpenCore config from `sudo bash tools/hybrid/efi.sh wexrtx-keep`: WhateverXe `94698a29` (our wex-0001..0004),
-  nullmoth NVRM 2.6.4 + NVAccel headless, NMIntelFB gated off (`-nmintelfboff`), `SSDT-PNLF.aml`.
-- RTX for apps: `sudo bash tools/hybrid/ondemand.sh add NAME` (then reopen the app); `status` lists holders;
-  `off` restores nullmoth's list (every app boosts the RTX to max clock, pitfall); `noboost` stops the max-clock boost
-  for listed apps (XE-10), `boost` undoes it. Re-run `on` and `noboost` after any nullmoth update.
-- Wi-Fi: AirportMtkWlan with wifi5-0001..0006 (`dd967442` once WIFI-9 is installed).
-- Recovery: OpenCore Space → "Start once without NVIDIA driver"; `sudo bash tools/hybrid/efi.sh gpu-only` returns to
-  the RTX-only route (NMIntelFB bridge, 144 Hz).
-- Tests and evidence: [tests/wex-1.md](tests/wex-1.md); route background: [knowledge/hybrid-route.md](knowledge/hybrid-route.md).
+- Target: upstream `v2.7.2`, 14 commits after `v2.7.1`.
+- Critical change: upstream no longer publishes `nvkms-kapi` and `phys-for-va` as IORegistry properties. It adds
+  `nvDisplayPointers` on NVRM's `callPlatformFunction`; NVRMFB now requests the pointers through that API.
+- Upstream NMIntelFB's attach path now copies only `gpu-id`. The old NMX bridge path copied the two removed properties
+  into its synthetic Intel-panel nub. Port that path to the protected API; do not restore the old public properties.
+- `nvrm_gpuva_abi.h` adds `NVRMDisplayPointers` and ABI version 1; existing GPUVA ABI version 1 and flip ABI version 2
+  remain unchanged. Rebuild and inspect all consumers.
+- `NVRM.cpp`, `os-xnu2.cpp`, `nvrm-accel.cpp`, `NMIntelFB`, and Metal plugin sources also changed. Review NVAccel
+  patch interactions and the new security hardening before any build claim.
+- No 2.7.2 kext has been built or boot-tested. NVRM byte patch remains unsupported pending exact official package hash,
+  disassembly, offsets, and call-target verification.
 
-## NullMoth 2.7.1 migration (work in progress)
+Details: [2.7.2 migration audit](knowledge/nullmoth-2.7.2-migration.md).
 
-- Branch `upgrade/nullmoth-2.7.1`: source audit committed. NMIntelFB source and both shared ABI headers are byte-identical between v2.6.6 and v2.7.1, but upstream added backlight code since the NMX patch-tested v2.5.4 base; the builder keeps v2.5.4 as default pending a patch/build check.
-- NVAccel rebase helper added; replay/build still requires the Mac build host. NVRM byte patch remains disabled until the official 2.7.1 package binary is hashed and disassembled.
-- Details and validation gate: [knowledge/nullmoth-2.7.1-migration.md](knowledge/nullmoth-2.7.1-migration.md).
+## Historical known-good setup
 
-## Next step
+- Intel-panel bridge: tested on nullmoth 2.3.6 on Acer Nitro V15 ANV15-51, i5-13420H, RTX 3050 Laptop, macOS 15.8.1.
+- The old setup uses NMIntelFB and optional NVAccel/NVRM optimizations; do not infer their compatibility with 2.7.x.
+- Preserve the 2.3.6 package backup and OpenCore recovery route until the 2.7.2 migration is validated.
 
-Install WIFI-9 (`bash tools/wifi/build-airport.sh`, `sudo bash tools/wifi/install.sh airport`, reboot) and run
-`ondemand.sh noboost` (XE-10); watch for a repeat of the 2026-10-30 Wi-Fi panic. Upstream (2026-10-30): only
-nullmoth 2.6.5 is new, user-space only ([knowledge/research.md](knowledge/research.md)); install it as its own step.
+## Required next work
 
-XE-9: `bash tools/hybrid/power.sh` on battery, idle — (a) the hybrid, (b) one boot `-nvoff`. The gap is the idle
-RTX cost; if large, build an RTX power-off (ACPI `_OFF` SSDT / Intel-only mode).
-
-## Open problems
-
-1. RTX never powers off at runtime (nullmoth has no RTD3/GC6); cost unmeasured (XE-9).
-2. 144 Hz only in fullscreen: macOS auto-switches only on ProMotion panels; 60 Hz accepted by Lukas.
-3. Sleep: off. S3 never relit the panel on the old route (SLEEP-1/2, [tests/sleep-1-hibernate.md](tests/sleep-1-hibernate.md));
-   untested with WhateverXe.
-4. The 1401 app may rewrite `/Library/GPUBundles/nvmtl-allow.txt`; re-run `ondemand.sh on` if holders reappear.
-5. `ASSERT(linkBW)` warning in the XE-7 log, harmless so far.
+1. Port NMX's synthetic Intel-panel display nub to obtain `NVRMDisplayPointers` from the NVRM provider using
+   `nvDisplayPointers`; do not copy or republish kernel pointers in IORegistry.
+2. Rebase the NVAccel patch series onto 2.7.2 and review the 2.7.2 headless-display logic.
+3. Build plain and patched kexts on macOS, inspect symbols/sections and ABI consumers, and validate sysctls.
+4. Inspect the official 2.7.2 NVRM package before adding any binary patch case.
+5. Test boot, panel output, brightness, recovery and rollback on the target machine.
 
 ## Other areas
 
-- RTX-only route (path B, NMIntelFB bridge): works on nullmoth 2.3.6; 2.5.x/2.6.4 blink (UPG-2..5, parked),
-  [tests/rtx-8-accelerated-desktop.md](tests/rtx-8-accelerated-desktop.md).
-- NootedGreen hybrid (HYB-1..15) replaced by WhateverXe, [tests/hybrid-1.md](tests/hybrid-1.md).
-- Wi-Fi MT7921 works at the line's ceiling (WIFI-8), [knowledge/wifi.md](knowledge/wifi.md).
-- Previous status text (verbatim): [archive/status-2026-10-29.md](archive/status-2026-10-29.md).
+- WhateverXe hybrid and Wi-Fi work are documented in their dedicated test notes; this status page tracks the NullMoth bridge migration only.

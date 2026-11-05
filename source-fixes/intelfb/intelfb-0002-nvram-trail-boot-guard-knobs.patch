@@ -1,21 +1,18 @@
 --- a/intelfb.cpp
 +++ b/intelfb.cpp
-@@ -22,6 +22,66 @@
+@@ -24,2 +24,3 @@
  #include <sys/sysctl.h>
- 
++#include <IOKit/IONVRAM.h>
+ #include <libkern/version.h>
+@@ -27,4 +27,65 @@
  #define IFBLOG(fmt, ...) IOLog("NMIntelFB: " fmt "\n", ##__VA_ARGS__)
 +
-+// nmx-intel: a trail of the steps in NVRAM ("nullmoth-intelfb-trail"), written and synced at each step, so a boot that
-+// freezes before the log is saved still shows the last step reached (`nvram nullmoth-intelfb-trail`). And a boot guard:
-+// "nullmoth-intelfb-attaching" is set while start() runs and removed when it returns; found at probe, the last start
-+// never returned, so this boot leaves the panel to the firmware framebuffer. To try again: sudo nvram -d
-+// nullmoth-intelfb-attaching
-+#include <IOKit/IONVRAM.h>
++// Persist the last startup step and refuse to retry after a start() that never returned.
 +static IODTNVRAM *ifb_nvram()
 +{
 +    IORegistryEntry *e = IORegistryEntry::fromPath("/options", gIODTPlane);
 +    IODTNVRAM *n = OSDynamicCast(IODTNVRAM, e);
-+    if (n == nullptr && e != nullptr) e->release();
++    if (!n && e) e->release();
 +    return n;
 +}
 +static void ifb_nv_set(const char *key, const char *val)
@@ -24,8 +21,9 @@
 +    if (!n) return;
 +    const OSSymbol *k = OSSymbol::withCString(key);
 +    if (k) {
-+        if (val) { if (OSData *d = OSData::withBytes(val, (unsigned)strlen(val))) { n->setProperty(k, d); d->release(); } }
-+        else n->removeProperty(k);
++        if (val) {
++            if (OSData *d = OSData::withBytes(val, (unsigned)strlen(val))) { n->setProperty(k, d); d->release(); }
++        } else n->removeProperty(k);
 +        k->release();
 +    }
 +    n->sync();
@@ -36,7 +34,7 @@
 +    IODTNVRAM *n = ifb_nvram();
 +    if (!n) return false;
 +    OSObject *o = n->copyProperty(key);
-+    bool has = o != nullptr;
++    const bool has = o != nullptr;
 +    if (o) o->release();
 +    n->release();
 +    return has;
@@ -55,28 +53,29 @@
 +    IODTNVRAM *n = ifb_nvram();
 +    if (!n) return def;
 +    uint32_t v = def;
-+    if (OSData *d = OSDynamicCast(OSData, n->copyProperty(key))) {
++    OSObject *o = n->copyProperty(key);
++    OSData *d = OSDynamicCast(OSData, o);
++    if (d) {
 +        char b[12] = {}; unsigned len = d->getLength() < 11 ? d->getLength() : 11;
 +        memcpy(b, d->getBytesNoCopy(), len);
-+        if (b[0] >= '0' && b[0] <= '9') { v = 0; for (unsigned i = 0; i < len && b[i] >= '0' && b[i] <= '9'; i++) v = v * 10 + (uint32_t)(b[i] - '0'); }
-+        d->release();
++        if (b[0] >= '0' && b[0] <= '9') {
++            v = 0;
++            for (unsigned i = 0; i < len && b[i] >= '0' && b[i] <= '9'; i++) v = v * 10 + (uint32_t)(b[i] - '0');
++        }
 +    }
++    if (o) o->release();
 +    n->release();
 +    return v;
 +}
  
  // kmutil places a kext in a kernel collection only with a _kmod_info symbol (Xcode generates it; this build does not)
  #include <mach/kmod.h>
-@@ -138,6 +198,7 @@
- public:
+@@ -138,3 +138,4 @@
      IOService *probe(IOService *provider, SInt32 *score) override;
      bool start(IOService *provider) override;
 +    bool startReal(IOService *provider);
      void stop(IOService *provider) override;
- 
-     IOReturn enableController() override { return kIOReturnSuccess; }
-@@ -253,6 +314,12 @@
-     uint16_t dev = pci->configRead16(kIOPCIConfigDeviceID);
+@@ -285,3 +285,9 @@
      fVer = displayVersion(dev);
      if (!fVer) return nullptr;   // an Intel GPU this driver does not know (older ones have Apple's own driver)
 +    if (ifb_nv_has("nullmoth-intelfb-attaching")) {
@@ -86,11 +85,7 @@
 +    }
 +    if (ifb_knob("nullmoth-intelfb", 1) == 0) { IFBLOG("off: nullmoth-intelfb=0"); return nullptr; }
      IFBLOG("8086:%04x display version %u", dev, fVer);
-     return IOFramebuffer::probe(provider, score);
- }
-@@ -326,6 +393,17 @@
-     IFBLOG("virtual panel published (1920x1080 at phys 0x%llx)", (unsigned long long)fApertureBase);
-     return true;
+@@ -363,2 +363,13 @@
  #endif
 +    gIfbTrail[0] = 0;
 +    ifb_nv_set("nullmoth-intelfb-attaching", "1");
@@ -104,18 +99,18 @@
 +bool NMIntelFB::startReal(IOService *provider)
 +{
      fPCI = OSDynamicCast(IOPCIDevice, provider);
-     if (!fPCI) return false;
-     fPCI->setMemoryEnable(true);
-@@ -333,23 +411,31 @@
-     IODeviceMemory *ap = fPCI->getDeviceMemoryWithRegister(kIOPCIConfigBaseAddress2);
-     if (!fMMIO || !ap) { IFBLOG("BAR0 or BAR2 is not mapped - leaving the firmware screen"); OSSafeReleaseNULL(fMMIO); return false; }
+@@ -370,23 +370,31 @@
      fRegs = (volatile uint8_t *)fMMIO->getVirtualAddress();
 +    ifb_trail("mmio");
      fApertureBase = ap->getPhysicalAddress(); fApertureLen = ap->getLength();
      if (!adoptFirmwareMode()) { OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false; }
--    if (!IOFramebuffer::start(provider)) { OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false; }
 +    { char t[64]; snprintf(t, sizeof t, "mode-%c-%ux%u-s%x", 'A' + fPipe, fWidth, fHeight, fSurf); ifb_trail(t); }
-+    if (!IOFramebuffer::start(provider)) { ifb_trail("fb-start-failed"); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false; }
+     publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
+     if (!IOFramebuffer::start(provider)) {
++        ifb_trail("fb-start-failed");
+         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+         OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
+     }
 +    ifb_trail("fb-started");
      // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
      // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
@@ -124,7 +119,6 @@
      }
 -    if (fSurfMap) {
 +    ifb_trail(fSurfMap ? "surf" : "surf-fail");
-+    // nmx-intel: nullmoth-intelfb-dep=0 publishes a plain framebuffer, without joining NVAccel as head 4
 +    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
          setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
@@ -138,5 +132,3 @@
      registerPowerDriver(this, kPowerStates, 2);
 +    ifb_trail("power");
      IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);
-     return true;
- }

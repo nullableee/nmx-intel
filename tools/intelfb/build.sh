@@ -11,6 +11,8 @@ if [ "$REV" = "v2.7.2" ]; then
   # The protected display-pointer ABI is shared with NVRM; compile against the exact header from the selected tag.
   git -C "$NM" show "$REV:kexts/NVRM/nvrm_gpuva_abi.h" > "$W/src/nvrm_gpuva_abi.h"
 fi
+git -C "$W/src" init -q
+git -C "$W/src" add -A
 for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   [ -f "$p" ] || continue
   case "$(basename "$p"):$REV" in

@@ -6,12 +6,14 @@
 > runbook; UPG-1 (2.1.0 → 2.3.6) in [../tests/rtx-8-accelerated-desktop.md](../tests/rtx-8-accelerated-desktop.md)
 > is the worked example; UPG-2 (2.3.6 → 2.5.0, NVIDIA 610 → 615) the one with an OGKM change.
 
+**Current target: [NullMoth 2.7.1 migration](nullmoth-2.7.1-migration.md).** The source audit confirms NMIntelFB, both shared ABI headers, and nvrm_pageoff.c are unchanged from 2.6.6. Since the NMX patch base is 2.6.4, note that nvrm-accel.cpp also gained a headless-display-owner check between 2.6.4 and 2.7.1; the helper rebases the patch series through both versions. os-xnu.cpp and the installer changed. The NMIntelFB builder retains v2.5.4 as its default until the backlight changes and NMX patches are verified. The NVRM byte patch remains intentionally unsupported until the exact packaged binary hash and offsets are measured. Use tools/upgrade/prepare-2.7.1.sh to create the NVAccel rebase worktree on a Mac build host.
+
 ## What we carry on top of a release
 
 | Piece | Ours | How it moves to a new release |
 | --- | --- | --- |
 | NVRM | copy-engine wait sleeps (`tools/nvrm/build.sh`) | find the new offsets (below), add a hash case to the script |
-| NVAccel | `source-fixes/accel/v<ver>/accel-0001..0003` | `git am -3` on the new tag, resolve, rebuild |
+| NVAccel | `source-fixes/accel/v<ver>/0001..0004` (v2.6.4 series has four commits) | `git am -3` on the new tag, resolve, rebuild |
 | NMIntelFB | `source-fixes/intelfb/*` | rebuild with `REV=v<ver>`; same hash = nothing to install. If upstream changed `kexts/NMIntelFB` and the series no longer applies but `nvrm_vram_abi.h` did not change, keep the installed binary (UPG-5) |
 | NVRMFB, NVRMAGDC, Metal (GPUBundles) | nothing | the release's |
 
@@ -47,7 +49,7 @@ Read `x/pkgroot/install.sh` before running it.
 ## 3. NVRM patch
 
 `nvrm_pageoff.c` is public: check the wait loop is unchanged (`git grep -n spins v<new> -- kexts/NVRM/nvrm_pageoff.c`).
-In the binary, find the second `osDelayUs` call in `_nvrm_ce_copy_to_pages` (the contiguous-run wait):
+In the binary, identify the `osDelayUs` call belonging to the contiguous-run branch by control flow and its preceding `spins > 200000` timeout check. Do not select a call merely by ordinal: the function also contains a separate per-page fallback wait loop.
 ```
 otool -tV -p _nvrm_ce_copy_to_pages <pkg NVRM> | grep -n -B4 -A2 osDelayUs
 nm <pkg NVRM> | grep -E ' _(os_delay|osDelayUs)$'
@@ -58,6 +60,8 @@ offset). Add a `case` with the full SHA-256 to `tools/nvrm/build.sh`, build with
 and check `otool` shows `callq _os_delay`.
 
 ## 4. NVAccel series
+
+For 2.7.1, run `bash tools/upgrade/prepare-2.7.1.sh`; it applies the series to a clean `v2.6.4` worktree, then cherry-picks those commits onto a clean `v2.7.1` worktree. The helper stops on conflicts and does not install anything.
 
 ```
 git -C ~/nmx-build/nvidia-macos-driver worktree add -b nmx-accel-<v> ~/nmx-build/accel/src-<v> v<new>

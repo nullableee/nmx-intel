@@ -1,13 +1,10 @@
 --- a/intelfb.cpp
 +++ b/intelfb.cpp
-@@ -19,6 +19,7 @@
- #include <IOKit/IOTimerEventSource.h>
+@@ -22,3 +22,4 @@
  #include <IOKit/IOWorkLoop.h>
  #include <kern/thread_call.h>
 +#include <kern/sched_prim.h>
  #include <sys/sysctl.h>
- 
- #define IFBLOG(fmt, ...) IOLog("NMIntelFB: " fmt "\n", ##__VA_ARGS__)
 @@ -104,18 +105,26 @@
  
  // intelfb-0006: heartbeat every second for three minutes after start(): "nullmoth-intelfb-beat" = ms since start, VBL
@@ -127,15 +124,15 @@
      return ok;
  }
 @@ -514,8 +533,10 @@
- #ifdef NMINTELFB_VIRTUAL
-     if (gVirt == this) { sysctl_unregister_oid(&sysctl__debug_nmintelfb_sample); gVirt = nullptr; }
  #endif
 -    // thread_call_cancel_wait is not exported to kexts: cancel and retry the free until the callback is out (as NVRMFB)
 -    if (fVblTimer) { thread_call_cancel(fVblTimer); while (!thread_call_free(fVblTimer)) { thread_call_cancel(fVblTimer); IOSleep(5); } fVblTimer = nullptr; }
-+    // intelfb-0007: wake the VBL thread and wait until it has left
++    // Wake the VBL thread and wait until it has left before releasing framebuffer state.
 +    fVblOn = false;
 +    thread_wakeup((event_t)&fVblNext);
 +    while (fVblRunning) IOSleep(5);
+     if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+     fPwmPeriod = 0;
      OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr;
      IOFramebuffer::stop(provider);
  }

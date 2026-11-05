@@ -13,6 +13,19 @@ macOS Sequoia 15.8.1, nullmoth's driver 2.3.6. There, wallpaper, transparency, a
 WindowServer dropped from about 225 % CPU to 67 %, and copying a frame to the panel takes 1.4 ms. Brightness keys
 work too.
 
+## Compatibility status
+
+The historical bridge was tested on 2.3.6 only. The current port targets NullMoth `v2.7.2` and adapts the
+Intel-panel bridge to the protected `nvDisplayPointers` API: the synthetic display nub carries only `gpu-id`, while
+NMIntelFB obtains KAPI and physical-VA pointers from its NVRM provider and keeps them kernel-private. The port also
+rebases the NMX AGDC link/timing path and NVAccel changes. A macOS 15 compile check is running in
+[GitHub Actions](https://github.com/nullableee/nmx-intel/actions); there is not yet a boot test on target hardware.
+See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
+
+The NVRM binary sleep patch remains disabled: no exact 2.7.2 package hash, offsets, and disassembly have been verified.
+Do not reuse old NVRM binary offsets. Tahoe 26 builds are prepared for NVAccel, but installation of the Intel-panel
+bridge remains blocked until its AGDC ABI is validated on Tahoe.
+
 ## Will it work on my laptop?
 
 You need all of these:
@@ -27,8 +40,7 @@ You need all of these:
 - macOS Sequoia already booting with OpenCore, with the panel working on the firmware framebuffer.
 - Xcode Command Line Tools (`xcode-select --install`), git, and internet access during the build (it downloads a
   few NVIDIA headers).
-- nullmoth's driver 2.3.6. The patches are built and tested against that release; for a newer one, see
-  [docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md).
+- nullmoth's NVIDIA driver. The original Intel-panel bridge was tested on 2.3.6 only; 2.7.2 is under source audit.
 
 To see your iGPU's device ID:
 
@@ -41,92 +53,43 @@ use the same display registers and should behave the same, but nobody has tried 
 
 ## Install
 
-1. Install nullmoth's NVIDIA driver with its 1401 app and reboot. Keep the app's "AMD / Intel" test driver off.
-   Before going on, check that the NVIDIA card shows up in System Information with Metal support.
-
-2. Get the sources. The build script expects nullmoth's repo in `~/nmx-build`:
-
-   ```bash
-   git clone https://github.com/kitsuneislife/nmx-intel ~/nmx-intel
-   ```
-
-   ```bash
-   git clone https://github.com/nullmoth/nvidia-macos-driver ~/nmx-build/nvidia-macos-driver
-   ```
-
-3. Build NMIntelFB. It ends by printing the kext's hash and size:
-
-   ```bash
-   bash ~/nmx-intel/tools/intelfb/build.sh
-   ```
-
-4. Install it. This copies the kext to `/Library/Extensions` and rebuilds the auxiliary kext collection, keeping a
-   backup of the old one in your home folder:
-
-   ```bash
-   sudo bash ~/nmx-intel/tools/intelfb/install.sh
-   ```
-
-5. Make NMIntelFB wait 45 seconds before taking the panel. That is how it has always run here; booting without the
-   wait froze once and hasn't been retested since.
-
-   ```bash
-   sudo nvram nullmoth-intelfb-delay=45
-   ```
-
-6. Install the boot job that switches the accelerated desktop on at every boot:
-
-   ```bash
-   sudo bash ~/nmx-intel/tools/intelfb/auto.sh install
-   ```
-
-7. Turn sleep off. After S3 the Intel display engine comes back with every register at zero and nothing relights the
-   panel yet.
-
-   ```bash
-   sudo pmset -a disablesleep 1
-   ```
-
-8. Reboot. The boot logo stays about 45 seconds longer than usual, then the login window appears on the panel.
-
-To check that frames are going through NMIntelFB, this number should keep growing while something moves on screen:
+The 2.7.2 build is separate from installation. From the repository root:
 
 ```bash
-sysctl debug.nvaccel_iop_ok
+bash tools/upgrade/build-2.7.2.sh
 ```
 
-## If something goes wrong
+This builds NMIntelFB and NVAccel for Sequoia 15 and NVAccel for Tahoe 26; it does not install anything. The
+transactional installer is Sequoia-only and checks that the installed NVRM/NVRMFB expose `nvDisplayPointers`:
 
-- Black screen at boot: pick "Start once without NVIDIA driver" in the OpenCore picker, or add `-nvoff` to the
-  boot-args for one boot. NMIntelFB stays off too, and the firmware framebuffer gives you a desktop.
-- `-nmintelfboff` in boot-args, or `sudo nvram nullmoth-intelfb=0`, turns NMIntelFB off without removing it.
-- If a start of NMIntelFB never returns, the next boot skips it on its own. Run
-  `sudo nvram -d nullmoth-intelfb-attaching` to let it try again.
-- nullmoth's driver turns itself off after two starts that never lit a display. If that happens after forced
-  power-offs, clear the counter with `sudo nvram -d nullmoth-nv-starts`.
-- `nvram nullmoth-intelfb-trail` shows the last step NMIntelFB reached, even when a boot froze before the log was
-  saved. More tokens and logs: [docs/knowledge/diagnostics.md](docs/knowledge/diagnostics.md).
-- `sudo bash ~/nmx-intel/tools/upgrade/rollback.sh <backup dir>` puts back the NVIDIA driver that nullmoth's
-  installer backed up in `/Library/NullMoth/backup-*` before an upgrade.
-- To remove everything: `sudo bash ~/nmx-intel/tools/intelfb/auto.sh remove`, then
-  `sudo bash ~/nmx-intel/tools/intelfb/install.sh remove`, then reboot.
+```bash
+sudo bash tools/upgrade/install-2.7.2.sh
+```
+
+Rollback to the NMIntelFB and NVAccel kexts saved before the first install:
+
+```bash
+sudo bash tools/upgrade/install-2.7.2.sh restore
+```
+
+The macOS 15 compile workflow has passed, so a controlled Sequoia hardware test is now possible. Neither Sequoia nor
+Tahoe has been boot-tested on the GIGABYTE G6 MF. The installer checks the installed NVRM/NVRMFB pointer API and
+backs up the current kexts before replacing them. Follow the [G6 MF test plan](docs/tests/gigabyte-g6-mf-2.7.2.md).
+Tahoe 26 remains blocked until the private AGDC ABI is validated there. Keep a bootable OpenCore recovery path.
 
 ## Known limits
 
-- Sleep breaks the panel (see step 7). Two attempts with hibernation failed:
-  [docs/tests/sleep-1-hibernate.md](docs/tests/sleep-1-hibernate.md).
+- Sleep breaks the panel on the historical bridge (see `tests/sleep-1-hibernate.md`).
 - One display only, the internal panel at its native mode.
 - The NVIDIA card stays on all the time. Battery cost hasn't been measured.
-- The 45-second wait adds that much to every boot.
+- The historical bridge adds a 45-second boot wait.
 
 ## Faster copies (optional)
 
-Two more changes cut the per-frame cost on the test machine: a patched NVAccel that has the RTX copy engine write straight
-into the panel's memory, and a byte patch that makes NVRM sleep instead of spin while it waits for that copy. They
-need a more involved build (NVIDIA's open-gpu-kernel-modules sources and a worktree of nullmoth's repo) and must be
-redone for each nullmoth release. `auto.sh` turns them on when it finds them. Runbook:
-[docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md); background:
-[docs/knowledge/bridge-optimization.md](docs/knowledge/bridge-optimization.md).
+The historical bridge also had a patched NVAccel and a byte patch that made NVRM sleep instead of spin while it waited
+for the copy engine. Both are release-specific and are not validated for 2.7.2. See
+[the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md) and the historical
+[upgrade runbook](docs/knowledge/nullmoth-upgrade.md).
 
 ## The i915 experiment
 
@@ -138,14 +101,12 @@ but WindowServer still composites in software, so it is parked. Build steps and 
 ## Repo layout
 
 ```
-tools/intelfb/   build, install and boot job for NMIntelFB (the route above)
+tools/intelfb/   build, install and boot job for NMIntelFB (historical route)
 tools/accel/     patched NVAccel (optional speedup)
 tools/nvrm/      NVRM byte patch (optional speedup)
 tools/sleep/     hibernation experiment (parked)
-tools/upgrade/   nullmoth driver upgrade, with rollback.sh
-tools/wifi/      MediaTek MT7921 Wi-Fi (native menu, 5 GHz, ~37 Mbit/s up and down)
-tools/mirror/, libdrm/, probe/, vram/, binpatch/   i915 port helpers and diagnostics
-tools/agent/     installs the Claude Code skills used here
+tools/upgrade/   2.7.2 build, install and rollback helpers
+tools/wifi/      MediaTek MT7921 Wi-Fi
 source-fixes/    our patches: intelfb/, accel/, and the i915 port
 build/           i915 port: set up ~/nmx-build, apply fixes, build NMXGPU
 docs/            status, test logs, knowledge base (start at docs/status.md)
@@ -155,8 +116,3 @@ docs/            status, test logs, knowledge base (start at docs/status.md)
 
 nullmoth's code is PolyForm Noncommercial 1.0.0 (personal and research use). This repo ships only scripts and diffs,
 never binaries, so you build the kexts yourself.
-
-<div align="center">
-  <img src="claude.png" width="300" height="300">
-  <p>kitsuneislife, 2026</p>
-</div>

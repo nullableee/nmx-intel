@@ -49,7 +49,7 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 -    ifb_trail("vbl");
 +    ifb_trail(fVblAlways ? "vbl-always" : "vbl");
      if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
-     // nmx-intel: nullmoth-intelfb-pm=0 leaves power management out (RTX-2 hung inside this call)
+     // Some firmware/boards hang while registering power management; leave it opt-out until target testing.
      if (ifb_knob("nullmoth-intelfb-pm", 1)) {
 @@ -614,8 +619,11 @@
      fPhysForVa = pv ? (NvU64 (*)(const void *))(uintptr_t)pv->unsigned64BitValue() : nullptr;

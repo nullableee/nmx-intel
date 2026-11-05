@@ -27,7 +27,7 @@ diff -ruN a/Info.plist src/Info.plist
 diff -ruN a/intelfb.cpp src/intelfb.cpp
 --- a/intelfb.cpp	2026-10-16 20:03:37
 +++ b/intelfb.cpp	2026-10-16 20:03:38
-@@ -403,6 +403,10 @@
+@@ -403,4 +403,8 @@
              nmintelfb_sample_sysctl, "A", "64 pixels of the virtual panel: non-black and varied counts");
  #endif
  
@@ -36,8 +36,6 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +static bool ifb_pci_ok(IOPCIDevice *pci, uint8_t *ver);
 +
  IOService *NMIntelFB::probe(IOService *provider, SInt32 *score)
- {
- #ifdef NMINTELFB_VIRTUAL
 @@ -411,24 +415,36 @@
      // machine with no Intel GPU (frames composited on the NVIDIA card must arrive in this buffer)
      fVer = 0xFF; return IOFramebuffer::probe(provider, score);

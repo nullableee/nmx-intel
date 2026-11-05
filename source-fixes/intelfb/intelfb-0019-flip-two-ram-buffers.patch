@@ -46,8 +46,10 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
          handleEvent(ordinal ? kIOFBNotifyDidPowerOn : kIOFBNotifyWillPowerOff);
          ifb_trail("sp-done");
          return kIOPMAckImplied;
-@@ -656,11 +666,13 @@
+@@ -656,13 +666,15 @@
      while (fVblRunning) IOSleep(5);
+     if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+     fPwmPeriod = 0;
      if (gIfbNubFB == this) { ifb_agdc_register(false); gIfbNubFB = nullptr; }
      if (gIfbRamFB == this) ifb_ram_register(nullptr);
 -    if (fRamOn) { fRamOn = false; ramPtes(false); }

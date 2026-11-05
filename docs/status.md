@@ -1,43 +1,35 @@
 # Status
 
-> **Summary.** Last updated 2026-10-30. Daily setup is the **WhateverXe hybrid** (XE-8 works, much cooler per
-> Lukas): the Iris Xe drives the desktop with Metal at 60 Hz, the RTX runs nullmoth headless and only apps listed by
-> `ondemand.sh` open it. Brightness works. Now: WIFI-9 (boot panic fix) and XE-10 (`noboost`); then XE-9 battery.
+> **Summary.** Last updated 2026-11-05. The NullMoth 2.7.2 NMX source port now passes the macOS 15 CI build: NMIntelFB compiles, all four NMX NVAccel patches apply, and NVAccel builds for macOS 15 and 26. No kext has been installed or boot-tested on the target GIGABYTE G6 MF.
 
-## Daily setup (how the machine boots now)
+## NullMoth 2.7.2 migration
 
-- OpenCore config from `sudo bash tools/hybrid/efi.sh wexrtx-keep`: WhateverXe `94698a29` (our wex-0001..0004),
-  nullmoth NVRM 2.6.4 + NVAccel headless, NMIntelFB gated off (`-nmintelfboff`), `SSDT-PNLF.aml`.
-- RTX for apps: `sudo bash tools/hybrid/ondemand.sh add NAME` (then reopen the app); `status` lists holders;
-  `off` restores nullmoth's list (every app boosts the RTX to max clock, pitfall); `noboost` stops the max-clock boost
-  for listed apps (XE-10), `boost` undoes it. Re-run `on` and `noboost` after any nullmoth update.
-- Wi-Fi: AirportMtkWlan with wifi5-0001..0006 (`dd967442` once WIFI-9 is installed).
-- Recovery: OpenCore Space → "Start once without NVIDIA driver"; `sudo bash tools/hybrid/efi.sh gpu-only` returns to
-  the RTX-only route (NMIntelFB bridge, 144 Hz).
-- Tests and evidence: [tests/wex-1.md](tests/wex-1.md); route background: [knowledge/hybrid-route.md](knowledge/hybrid-route.md).
+- Target: upstream `nullmoth/nvidia-macos-driver` tag `v2.7.2`.
+- Critical upstream change: NVRM no longer publishes `nvkms-kapi` and `phys-for-va` as IORegistry properties. It exposes `nvDisplayPointers` through `callPlatformFunction`; upstream NVRMFB uses that API.
+- NMX port: NMIntelFB now calls `nvDisplayPointers` on its NVRM provider, validates the API result, and keeps the returned pointers in private fields. The synthetic Intel-panel nub copies only `gpu-id`.
+- The NMX AGDC timing/link path has been rebased. The four NMX NVAccel patches apply to a clean v2.7.2 worktree.
+- CI on macOS 15 / Xcode 16.4 compiled NMIntelFB and built NVAccel for both macOS 15 and 26. This verifies source patch application and compilation only; it does not establish runtime or display compatibility.
+- NMIntelFB CI artifact: `c40f9c77`, 120,544 bytes.
+- NVAccel CI artifacts: macOS 15 `ce79ccff`; macOS 26 `6dbc226e`. Patched NVAccel source head: `28c7edc`, VRAM ABI 2.
+- `tools/upgrade/build-2.7.2.sh` builds both components. `tools/upgrade/install-2.7.2.sh` backs up the existing kexts, checks for the protected pointer API in installed NVRM/NVRMFB, and can restore the saved NMIntelFB/NVAccel kexts.
+- Installer is deliberately Sequoia 15-only. Tahoe 26 has an NVAccel build, but the NMIntelFB/AGDC private ABI has not been validated or boot-tested on Tahoe.
+- NVRM byte patch remains disabled: no exact official 2.7.2 package hash, disassembly, offsets, or call-target verification.
 
-## Next step
+Details: [2.7.2 migration audit](knowledge/nullmoth-2.7.2-migration.md).
 
-Install WIFI-9 (`bash tools/wifi/build-airport.sh`, `sudo bash tools/wifi/install.sh airport`, reboot) and run
-`ondemand.sh noboost` (XE-10); watch for a repeat of the 2026-10-30 Wi-Fi panic. Upstream (2026-10-30): only
-nullmoth 2.6.5 is new, user-space only ([knowledge/research.md](knowledge/research.md)); install it as its own step.
+## Historical known-good setup
 
-XE-9: `bash tools/hybrid/power.sh` on battery, idle — (a) the hybrid, (b) one boot `-nvoff`. The gap is the idle
-RTX cost; if large, build an RTX power-off (ACPI `_OFF` SSDT / Intel-only mode).
+- Intel-panel bridge: tested on nullmoth 2.3.6 on Acer Nitro V15 ANV15-51, i5-13420H, RTX 3050 Laptop, macOS 15.8.1.
+- The old setup uses NMIntelFB and optional NVAccel/NVRM optimizations; do not infer its behavior on 2.7.x.
+- Preserve the current working G6 MF setup and OpenCore recovery route until the new kexts pass hardware testing.
 
-## Open problems
+## Required next work
 
-1. RTX never powers off at runtime (nullmoth has no RTD3/GC6); cost unmeasured (XE-9).
-2. 144 Hz only in fullscreen: macOS auto-switches only on ProMotion panels; 60 Hz accepted by Lukas.
-3. Sleep: off. S3 never relit the panel on the old route (SLEEP-1/2, [tests/sleep-1-hibernate.md](tests/sleep-1-hibernate.md));
-   untested with WhateverXe.
-4. The 1401 app may rewrite `/Library/GPUBundles/nvmtl-allow.txt`; re-run `ondemand.sh on` if holders reappear.
-5. `ASSERT(linkBW)` warning in the XE-7 log, harmless so far.
+1. Install/test the 2.7.2 build on the GIGABYTE G6 MF with a verified rollback path.
+2. Verify internal-panel output, WindowServer composition, frame pacing, brightness, cold boot, sleep/wake, and recovery.
+3. Compare Sequoia 15 with Tahoe 26 only after the Sequoia hardware test passes; Tahoe requires separate AGDC ABI validation.
+4. Inspect the official 2.7.2 NVRM binary before considering any byte patch.
 
 ## Other areas
 
-- RTX-only route (path B, NMIntelFB bridge): works on nullmoth 2.3.6; 2.5.x/2.6.4 blink (UPG-2..5, parked),
-  [tests/rtx-8-accelerated-desktop.md](tests/rtx-8-accelerated-desktop.md).
-- NootedGreen hybrid (HYB-1..15) replaced by WhateverXe, [tests/hybrid-1.md](tests/hybrid-1.md).
-- Wi-Fi MT7921 works at the line's ceiling (WIFI-8), [knowledge/wifi.md](knowledge/wifi.md).
-- Previous status text (verbatim): [archive/status-2026-10-29.md](archive/status-2026-10-29.md).
+- WhateverXe hybrid and Wi-Fi work are documented in their dedicated test notes; this status page tracks the NullMoth bridge migration only.

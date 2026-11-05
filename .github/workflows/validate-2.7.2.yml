@@ -1,0 +1,50 @@
+name: NullMoth 2.7.2 port validation
+
+concurrency:
+  group: nullmoth-272-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - upgrade/nullmoth-2.7.2
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch upstream sources
+        run: |
+          mkdir -p "$HOME/nmx-build"
+          git clone https://github.com/nullmoth/nvidia-macos-driver "$HOME/nmx-build/nvidia-macos-driver"
+          git init "$HOME/ogkm615"
+          git -C "$HOME/ogkm615" remote add origin https://github.com/NVIDIA/open-gpu-kernel-modules
+          git -C "$HOME/ogkm615" fetch --depth 1 origin tag 615.78.08
+          git -C "$HOME/ogkm615" checkout -q 615.78.08
+
+      - name: Validate helper syntax
+        run: |
+          bash -n tools/upgrade/build-2.7.2.sh tools/upgrade/install-2.7.2.sh
+          python3 -m py_compile tools/intelfb/apply-2.7.2-port.py
+
+      - name: Build NMIntelFB with the 2.7.2 protected-pointer port
+        run: bash tools/intelfb/build.sh
+        env:
+          REV: v2.7.2
+
+      - name: Prepare NMX NVAccel worktree
+        run: bash tools/upgrade/prepare-2.7.2.sh
+        env:
+          REV: v2.7.2
+
+      - name: Build patched NVAccel
+        run: bash tools/accel/build.sh
+ 

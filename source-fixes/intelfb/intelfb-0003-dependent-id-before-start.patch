@@ -7,7 +7,7 @@
 +        ifb_trail("sp-done");
          return kIOPMAckImplied;
      }
-@@ -420,22 +420,30 @@
+@@ -420,24 +420,30 @@
      { char t[64]; snprintf(t, sizeof t, "mode-%c-%ux%u-s%x", 'A' + fPipe, fWidth, fHeight, fSurf); ifb_trail(t); }
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
 -    if (!IOFramebuffer::start(provider)) {
@@ -41,6 +41,8 @@
      setProperty("built-in", kOSBooleanTrue);   // the panel is the laptop's own (kConnectionFlags says so too)
      armVbl();
      ifb_trail("vbl");
+-    registerPowerDriver(this, kPowerStates, 2);
+-    ifb_trail("power");
 +    // Some firmware/boards hang while registering power management; leave it opt-out until target testing.
 +    if (ifb_knob("nullmoth-intelfb-pm", 1)) {
 +        ifb_trail("pm");

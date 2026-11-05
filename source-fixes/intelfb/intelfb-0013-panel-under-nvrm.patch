@@ -27,7 +27,7 @@ diff -ruN a/Info.plist src/Info.plist
 diff -ruN a/intelfb.cpp src/intelfb.cpp
 --- a/intelfb.cpp	2026-10-16 20:03:37
 +++ b/intelfb.cpp	2026-10-16 20:03:38
-@@ -403,4 +403,7 @@
+@@ -403,4 +403,8 @@
              nmintelfb_sample_sysctl, "A", "64 pixels of the virtual panel: non-black and varied counts");
  #endif
  

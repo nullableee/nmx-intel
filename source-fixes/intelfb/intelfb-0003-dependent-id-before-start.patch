@@ -7,12 +7,12 @@
 +        ifb_trail("sp-done");
          return kIOPMAckImplied;
      }
-@@ -420,24 +420,28 @@
+@@ -420,24 +420,27 @@
      { char t[64]; snprintf(t, sizeof t, "mode-%c-%ux%u-s%x", 'A' + fPipe, fWidth, fHeight, fSurf); ifb_trail(t); }
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
 -    if (!IOFramebuffer::start(provider)) {
 -        ifb_trail("fb-start-failed");
--        if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+-        if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
 -        OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
 -    }
 -    ifb_trail("fb-started");
@@ -21,18 +21,18 @@
      if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
          fSurfMap = sm->map(kIOMapWriteCombineCache); sm->release();
      }
-     if (fSurfMap) {
-+        // The dependent ID selects the controller IOFramebuffer::start builds, so publish it before start().
-+        if (ifb_knob("nullmoth-intelfb-dep", 1)) {
++    ifb_trail(fSurfMap ? "surf" : "surf-fail");
+-    if (fSurfMap) {
++    // The dependent ID selects the controller IOFramebuffer::start builds, so publish it before start().
++    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
          setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
 +        ifb_trail("dep");
--    }
-+        } else IFBLOG("nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
-+    }
+-    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
++    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
 +    if (!IOFramebuffer::start(provider)) {
 +        ifb_trail("fb-start-failed");
-+        if (fBacklight) { fBacklight->terminate(kIOServiceSynchronous); fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
++        if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
 +        OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
 +    }
 +    ifb_trail("fb-started");

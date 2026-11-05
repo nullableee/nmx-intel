@@ -18,6 +18,8 @@ command -v git >/dev/null || { echo "STOP: git is required" >&2; exit 1; }
 compgen -G "$PATCHDIR/*.patch" >/dev/null || { echo "STOP: no .patch files in $PATCHDIR" >&2; exit 1; }
 shopt -s nullglob
 patches=("$PATCHDIR"/*.patch)
+PATCH_COUNT=${#patches[@]}
+[ "$PATCH_COUNT" -eq 4 ] || { echo "STOP: expected the four-patch v2.6.4 series, found $PATCH_COUNT" >&2; exit 1; }
 
 mkdir -p "$(dirname "$PATCH_SRC")" "$(dirname "$SRC")"
 git -C "$NM" fetch --tags origin
@@ -49,6 +51,8 @@ if ! git -C "$PATCH_SRC" am -3 "${patches[@]}"; then
   echo "Patch replay onto $BASE stopped. Resolve in $PATCH_SRC, then run git am --continue (or --abort)." >&2
   exit 1
 fi
+APPLIED=$(git -C "$PATCH_SRC" rev-list --count "$BASE..HEAD")
+[ "$APPLIED" -eq "$PATCH_COUNT" ] || { echo "STOP: expected $PATCH_COUNT patch commits, found $APPLIED" >&2; exit 1; }
 
 git -C "$NM" worktree add -b "$BRANCH" "$SRC" "$TAG"
 commits=$(git -C "$PATCH_SRC" rev-list --reverse "$BASE..HEAD")
@@ -60,6 +64,8 @@ if ! git -C "$SRC" cherry-pick -x $commits; then
   echo "To abandon only the target replay: git -C '$SRC' cherry-pick --abort"
   exit 1
 fi
+REPLAYED=$(git -C "$SRC" rev-list --count "$TAG..HEAD")
+[ "$REPLAYED" -eq "$PATCH_COUNT" ] || { echo "STOP: expected $PATCH_COUNT replayed commits, found $REPLAYED" >&2; exit 1; }
 
 echo
 echo "NMX patch commits replayed onto $TAG."

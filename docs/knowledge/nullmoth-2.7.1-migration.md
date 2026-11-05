@@ -10,7 +10,7 @@ The upstream compare contains 125 commits. The following exact Git blob IDs are 
 
 | Path | Blob SHA | Finding |
 | --- | --- | --- |
-| `kexts/NMIntelFB/intelfb.cpp` | `d17df12551303157b71cd9ccbcd6cf16c8b7553c` | unchanged |
+| `kexts/NMIntelFB/intelfb.cpp` | `d17df12551303157b71cd9ccbcd6cf16c8b7553c` | unchanged from v2.6.6 to v2.7.1 |
 | `kexts/NVRM/nvrm_vram_abi.h` | `430fcb431ad443c4ca82b041c4e8d3462c787fcf` | unchanged; ABI version 2 |
 | `kexts/NVRM/nvrm_gpuva_abi.h` | `e26646c7ac3c1ec02366366ea7476d3acb2b11c1` | unchanged; GPUVA ABI version 1, flip ABI version 2 |
 | `kexts/NVRM/nvrm_pageoff.c` | `b0c2fdb7c2f63ed327849611f04ab5c47ae9162b` | unchanged |
@@ -19,7 +19,7 @@ The v2.6.6 → v2.7.1 release diff changes `kexts/NVRM/os-xnu.cpp` (27 additions
 
 ### Consequences for NMX
 
-- **NMIntelFB:** its upstream source and both shared ABI headers are byte-identical to 2.6.6. The build script default is now `REV=v2.7.1`. This establishes source compatibility, not runtime validation; rebuild on the Mac and compare the resulting binary hash with the installed one.
+- **NMIntelFB:** its upstream source and both shared ABI headers are byte-identical from 2.6.6 to 2.7.1. However, `intelfb.cpp` changed between the NMX builder's last patch-tested base (v2.5.4) and v2.7.1: upstream added a backlight handler and changed the `IOFramebuffer::start` failure cleanup. The builder therefore keeps v2.5.4 as its default. On the Mac, explicitly try `REV=v2.7.1 bash tools/intelfb/build.sh`; only switch the default after every `source-fixes/intelfb/*.patch` applies and the kext builds. Compare the resulting binary and test brightness/boot behaviour.
 - **NVAccel:** the 2.6.4 → 2.7.1 history does change `nvrm-accel.cpp` in the headless-display-owner logic; it is not a no-op upgrade. The existing NMX patch series must first be applied to its original 2.6.4 base, then replayed onto 2.7.1 with three-way cherry-picks. Review the headless-check interaction, build for macOS 15 and 26, compare symbols/strings/sections, and check all NMX sysctls before support is claimed.
 - **NVRM copy-engine patch:** `nvrm_pageoff.c` is byte-identical, and the contiguous-run wait still uses the 200000-spin timeout and `osDelayUs(10)`. However, `os-xnu.cpp` changed, which can move code and symbols in the packaged NVRM binary. The 2.6.4 file offsets, rel32 displacement, and SHA-256 must not be reused. The second per-page fallback wait loop also remains in the source; the existing NMX patch description targets only the contiguous-run path.
 - **Installer:** 2.7.1 changes `package/install.sh`; read and verify the official package before installation. The release also fixes permissions on `/Library/NullMoth` for the ARM translator.
@@ -34,7 +34,7 @@ bash tools/upgrade/prepare-2.7.1.sh
 
 The helper creates a clean `v2.6.4` patch-base worktree, applies `source-fixes/accel/v2.6.4/*.patch` there with `git am -3`, then creates a clean `v2.7.1` worktree and cherry-picks those patch commits with `-x`. If either stage conflicts, resolve it in the indicated worktree and inspect the result; do not export a new series until the build passes. The script refuses to overwrite an existing worktree or reuse a dirty source clone.
 
-After the patches apply:
+After the NVAccel patches apply:
 
 ```bash
 SRC=~/nmx-build/accel/src-271 OUT=~/nmx-build/accel/out-271 bash tools/accel/build.sh

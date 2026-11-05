@@ -3,7 +3,7 @@
 Target: `nullmoth/nvidia-macos-driver` tag `v2.7.2`.
 Comparison: [v2.7.1...v2.7.2](https://github.com/nullmoth/nvidia-macos-driver/compare/v2.7.1...v2.7.2).
 
-This is a source audit only. No kext was built, installed, or boot-tested for 2.7.2.
+This is a source audit plus an initial source-level port. No kext has been built, installed, or boot-tested for 2.7.2.
 
 ## Upstream delta
 
@@ -19,17 +19,19 @@ Relevant source changes include:
 
 ## NMX compatibility finding
 
-The historical NMX Intel-panel bridge creates a synthetic `NVRMDisplay` nub under NVRM and copies the keys
-`nvkms-kapi`, `gpu-id`, and `phys-for-va` from the first display nub. That was the upstream 2.7.1 behavior.
-In 2.7.2, upstream intentionally removed the two pointer properties as a security hardening measure. A simple rebase
-that keeps copying those properties will leave the synthetic Intel-panel nub without the KAPI and physical-VA
-functions, or tempt the port to re-expose kernel pointers through IORegistry.
+The historical NMX Intel-panel bridge creates a synthetic `NVRMDisplay` nub under NVRM. Its old patch copied
+`nvkms-kapi`, `gpu-id`, and `phys-for-va` from the first display nub. In 2.7.2, upstream intentionally removed
+the two pointer properties as a security hardening measure.
 
-**Required port:** adapt the NMX bridge so the framebuffer obtains the pointer pair by calling
-`nvDisplayPointers` on its NVRM provider, validating the ABI version and return status, and retaining the pointers
-only in kernel-private state. Do not restore the old IORegistry properties. Review ownership/lifetime and failure
-handling against upstream NVRMFB's `kapiInit()` implementation. The upstream API returns a KAPI pointer and a
-`physForVa` function pointer; the bridge must not assume the old property-copy path still exists.
+**Initial source port added on branch `upgrade/nullmoth-2.7.2`:** patch
+`source-fixes/intelfb/intelfb-0022-nvdisplaypointers.patch` changes the synthetic nub to copy only `gpu-id`.
+The NMIntelFB KAPI setup now calls `nvDisplayPointers` on the NVRM provider, passes ABI version 1, checks the
+`callPlatformFunction` result, and keeps the returned pointers in the framebuffer's private fields. The build script
+stages the exact `nvrm_gpuva_abi.h` from the selected upstream tag and rejects a resulting source file that still
+contains either legacy IORegistry key.
+
+This is a source-level implementation only: patch application against the full 2.7.2 patch series, compilation,
+and runtime behavior are not yet verified. Do not install it yet.
 
 ## Other migration consequences
 
@@ -45,7 +47,8 @@ handling against upstream NVRMFB's `kapiInit()` implementation. The upstream API
 
 ## Validation gates
 
-- [ ] Port synthetic Intel-panel nub to the protected `nvDisplayPointers` API.
+- [x] Add a source-level port of the synthetic Intel-panel nub to the protected `nvDisplayPointers` API.
+- [ ] Verify the complete patch series applies cleanly to the 2.7.2 source and inspect the resulting diff.
 - [ ] Confirm no public IORegistry property exposes either kernel pointer.
 - [ ] Rebase and review all four NVAccel patches on 2.7.2.
 - [ ] Build NMIntelFB and NVAccel on a macOS build host.
@@ -53,4 +56,4 @@ handling against upstream NVRMFB's `kapiInit()` implementation. The upstream API
 - [ ] Inspect the official 2.7.2 NVRM binary hash, Mach-O layout, offsets and disassembly before any byte patch.
 - [ ] Test boot, display, brightness, recovery and rollback on target hardware.
 
-Until these gates pass, 2.7.2 support is not established. Preserve the known-good 2.3.6 setup.
+Until the build and runtime gates pass, 2.7.2 support is not established. Preserve the known-good setup and recovery path.

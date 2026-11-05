@@ -1,5 +1,5 @@
 name: NullMoth 2.7.2 port validation
-# Re-run patch-application diagnostics after the source-level rebase and hunk-offset correction and exact-context diagnostics after the post-2.7.2 offset, newline, and whitespace matching fix and split-hunk rebase with git-apply with sequential hunk positions without inter-hunk blank lines.
+# Re-run patch-application diagnostics after the source-level rebase and hunk-offset correction and exact-context diagnostics after the post-2.7.2 offset, newline, and whitespace matching fix and split-hunk rebase with git-apply with sequential hunk positions without inter-hunk blank lines and source-context logging.
 
 concurrency:
   group: nullmoth-272-${{ github.ref }}

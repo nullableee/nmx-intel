@@ -27,8 +27,10 @@ You need all of these:
 - macOS Sequoia already booting with OpenCore, with the panel working on the firmware framebuffer.
 - Xcode Command Line Tools (`xcode-select --install`), git, and internet access during the build (it downloads a
   few NVIDIA headers).
-- nullmoth's driver 2.3.6. The patches are built and tested against that release; for a newer one, see
-  [docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md).
+- nullmoth's NVIDIA driver. The original Intel-panel bridge was tested on 2.3.6; the 2.7.1 source migration is in progress.
+  NMIntelFB's upstream source and shared ABI headers are unchanged through 2.7.1, but the optional NVAccel/NVRM
+  optimizations are not considered compatible until rebuilt and validated. See
+  [the 2.7.1 migration notes](docs/knowledge/nullmoth-2.7.1-migration.md) and [the upgrade runbook](docs/knowledge/nullmoth-upgrade.md).
 
 To see your iGPU's device ID:
 
@@ -47,7 +49,7 @@ use the same display registers and should behave the same, but nobody has tried 
 2. Get the sources. The build script expects nullmoth's repo in `~/nmx-build`:
 
    ```bash
-   git clone https://github.com/kitsuneislife/nmx-intel ~/nmx-intel
+   git clone https://github.com/nullableee/nmx-intel ~/nmx-intel
    ```
 
    ```bash
@@ -125,7 +127,8 @@ Two more changes cut the per-frame cost on the test machine: a patched NVAccel t
 into the panel's memory, and a byte patch that makes NVRM sleep instead of spin while it waits for that copy. They
 need a more involved build (NVIDIA's open-gpu-kernel-modules sources and a worktree of nullmoth's repo) and must be
 redone for each nullmoth release. `auto.sh` turns them on when it finds them. Runbook:
-[docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md); background:
+[docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md); current 2.7.1 audit:
+[docs/knowledge/nullmoth-2.7.1-migration.md](docs/knowledge/nullmoth-2.7.1-migration.md); background:
 [docs/knowledge/bridge-optimization.md](docs/knowledge/bridge-optimization.md).
 
 ## The i915 experiment

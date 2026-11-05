@@ -16,6 +16,12 @@
   the RTX-only route (NMIntelFB bridge, 144 Hz).
 - Tests and evidence: [tests/wex-1.md](tests/wex-1.md); route background: [knowledge/hybrid-route.md](knowledge/hybrid-route.md).
 
+## NullMoth 2.7.1 migration (work in progress)
+
+- Branch `upgrade/nullmoth-2.7.1`: source audit committed. NMIntelFB source and both shared ABI headers are byte-identical between v2.6.6 and v2.7.1; its build default now targets v2.7.1.
+- NVAccel rebase helper added; replay/build still requires the Mac build host. NVRM byte patch remains disabled until the official 2.7.1 package binary is hashed and disassembled.
+- Details and validation gate: [knowledge/nullmoth-2.7.1-migration.md](knowledge/nullmoth-2.7.1-migration.md).
+
 ## Next step
 
 Install WIFI-9 (`bash tools/wifi/build-airport.sh`, `sudo bash tools/wifi/install.sh airport`, reboot) and run

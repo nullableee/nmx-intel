@@ -1,5 +1,4 @@
 name: NullMoth 2.7.2 port validation
-# Re-run patch-application diagnostics after the source-level rebase and hunk-offset correction and exact-context diagnostics after the post-2.7.2 offset, newline, and whitespace matching fix and split-hunk rebase with git-apply with sequential hunk positions without inter-hunk blank lines and source-context logging and corrected old/new diff coordinates.
 
 concurrency:
   group: nullmoth-272-${{ github.ref }}
@@ -30,6 +29,11 @@ jobs:
           git -C "$HOME/ogkm615" remote add origin https://github.com/NVIDIA/open-gpu-kernel-modules
           git -C "$HOME/ogkm615" fetch --depth 1 origin tag 615.78.08
           git -C "$HOME/ogkm615" checkout -q 615.78.08
+
+      - name: Validate helper syntax
+        run: |
+          bash -n tools/upgrade/build-2.7.2.sh tools/upgrade/install-2.7.2.sh
+          python3 -m py_compile tools/intelfb/apply-2.7.2-port.py
 
       - name: Build NMIntelFB with the 2.7.2 protected-pointer port
         run: bash tools/intelfb/build.sh

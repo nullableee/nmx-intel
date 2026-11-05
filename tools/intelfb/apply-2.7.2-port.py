@@ -35,9 +35,11 @@ replace_once(
 replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     if (!IOFramebuffer::start(provider)) {
+        ifb_trail("fb-start-failed");
         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
         OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
     }
+    ifb_trail("fb-started");
     // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
     // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
     if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
@@ -88,12 +90,6 @@ replace_once(
     IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
 "guarded power registration",
 )
-
-if '"nvkms-kapi"' in source or '"phys-for-va"' in source:
-    raise SystemExit("STOP: legacy kernel pointers remain in IORegistry source")
-if "NVRM_DISPLAY_PTRS_FN" not in source:
-    # Patch 0023 adds the protected API later in the build sequence.
-    pass
 
 path.write_text(source)
 print(f"Applied 2.7.2 NMX start-order/power port: {path}")

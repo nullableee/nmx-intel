@@ -78,11 +78,16 @@ rollback_files() {
   chmod -R 755 "$EXT/NMIntelFB.kext" "$EXT/NVAccel.kext"
 }
 rm -f "$NEWKC"
-ditto "$SRC_IFB" "$EXT/NMIntelFB.kext.new"
-ditto "$SRC_ACCEL" "$EXT/NVAccel.kext.new"
-rm -rf "$EXT/NMIntelFB.kext" "$EXT/NVAccel.kext"
-mv "$EXT/NMIntelFB.kext.new" "$EXT/NMIntelFB.kext"
-mv "$EXT/NVAccel.kext.new" "$EXT/NVAccel.kext"
+if ! ditto "$SRC_IFB" "$EXT/NMIntelFB.kext.new" ||
+   ! ditto "$SRC_ACCEL" "$EXT/NVAccel.kext.new" ||
+   ! rm -rf "$EXT/NMIntelFB.kext" "$EXT/NVAccel.kext" ||
+   ! mv "$EXT/NMIntelFB.kext.new" "$EXT/NMIntelFB.kext" ||
+   ! mv "$EXT/NVAccel.kext.new" "$EXT/NVAccel.kext"; then
+  echo "Kext file replacement failed; restoring the previously installed files." >&2
+  rollback_files
+  rm -rf "$EXT/NMIntelFB.kext.new" "$EXT/NVAccel.kext.new"
+  exit 1
+fi
 chown -R root:wheel "$EXT/NMIntelFB.kext" "$EXT/NVAccel.kext"
 chmod -R 755 "$EXT/NMIntelFB.kext" "$EXT/NVAccel.kext"
 
@@ -104,7 +109,11 @@ for k in NVRM NVRMFB NVRMAGDC NVAccel NMIntelFB; do
     rollback_files; rm -f "$NEWKC"; exit 1
   fi
 done
-mv -f "$NEWKC" "$KC"
+if ! mv -f "$NEWKC" "$KC"; then
+  echo "Could not replace Auxiliary Kernel Collection; restoring previous kext files." >&2
+  rollback_files
+  exit 1
+fi
 nvram -d nullmoth-intelfb-attaching 2>/dev/null || true
 nvram -d nullmoth-intelfb-trail 2>/dev/null || true
 nvram -d nullmoth-intelfb-beat 2>/dev/null || true

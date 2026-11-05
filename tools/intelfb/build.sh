@@ -30,6 +30,8 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
       fi ;;
   esac
   if ! patch --verbose -d "$W/src" -p1 < "$p"; then
+    echo "SOURCE CONTEXT AROUND THE REJECT:" >&2
+    nl -ba "$W/src/intelfb.cpp" | sed -n '440,500p' >&2
     for rej in "$W/src"/*.rej; do
       [ -f "$rej" ] || continue
       echo "REJECTED HUNKS: $rej" >&2

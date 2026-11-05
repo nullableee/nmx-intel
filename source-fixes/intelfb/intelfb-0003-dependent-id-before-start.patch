@@ -7,7 +7,7 @@
 +        ifb_trail("sp-done");
          return kIOPMAckImplied;
      }
-@@ -398,9 +398,3 @@
+@@ -459,9 +461,3 @@
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
 -    if (!IOFramebuffer::start(provider)) {
 -        ifb_trail("fb-start-failed");
@@ -17,7 +17,7 @@
 -    ifb_trail("fb-started");
      // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
      // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
-@@ -464,7 +464,10 @@
+@@ -468,7 +464,10 @@
      if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
          fSurfMap = sm->map(kIOMapWriteCombineCache); sm->release();
      }
@@ -30,7 +30,7 @@
 -    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
 +        ifb_trail("dep");
 +    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
-@@ -473,2 +473,8 @@
+@@ -474,2 +473,8 @@
      } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
 +    if (!IOFramebuffer::start(provider)) {
 +        ifb_trail("fb-start-failed");
@@ -39,7 +39,7 @@
 +    }
 +    ifb_trail("fb-started");
      setProperty("NMIntelFBPipe", fPipe, 32);
-@@ -485,3 +485,7 @@
+@@ -480,3 +485,7 @@
 -    registerPowerDriver(this, kPowerStates, 2);
 -    ifb_trail("power");
 +    // Some firmware/boards hang while registering power management; leave it opt-out until target testing.

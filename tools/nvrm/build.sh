@@ -15,6 +15,8 @@
 #   _os_delay 0x14650 (everything 0x460 later, so the same call displacements).
 # 2.6.4 (cea6fb0e…, nvrm_pageoff.c unchanged since 2.5.0): 0x1cb48 / 0x1cb53 / 0x1cb58, _osDelayUs 0x2e0420,
 #   _os_delay 0x14f90 (everything 0x940 after 2.5.4, same call displacements).
+# 2.7.1: nvrm_pageoff.c and both shared ABI headers match 2.6.6, but os-xnu.cpp changed; packaged NVRM
+#   binary hash/offsets have not been verified. Deliberately unsupported here until a 2.7.1 package is inspected.
 # SRCK picks the input: ~/NVRM.kext.original (2.1.0) by default, or e.g. the 2.3.6 package's
 #   SRCK=~/nmx-build/pkg-2.3.6/x/pkgroot/Library/Extensions/NVRM.kext bash tools/nvrm/build.sh
 # Each patch checks the bytes it replaces. Output: ~/nmx-build/nvrm/out/NVRM.kext (not versioned: PolyForm).
@@ -28,7 +30,7 @@ case "$(shasum -a 256 "$SRCK/Contents/MacOS/NVRM" | cut -d' ' -f1)" in
   aca96ea6f24b761cfc0c20bfd2291d20e706a57db8267419e846aced67ec4ba0) V=2.5.0;;
   4591c5bd732838417168b366380c9a0eefdd4ad940d3eed3bfff22f6ade2e0f7) V=2.5.4;;
   cea6fb0e6a63d02d58c008144c474a95e2c9b9e10941557652002f2e45a32d33) V=2.6.4;;
-  *) echo "$SRCK is not nullmoth 2.1.0's, 2.3.6's, 2.5.0's, 2.5.4's or 2.6.4's NVRM"; exit 1;;
+  *) echo "STOP: unrecognised NVRM binary at $SRCK (including 2.7.1 until its SHA-256 and offsets are verified); no bytes changed"; exit 1;;
 esac
 rm -rf "$OUT" && mkdir -p "$OUT" && ditto "$SRCK" "$OUT/NVRM.kext"
 patch() {   # patch <offset> <old hex> <new hex>

@@ -17,9 +17,15 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
     intelfb-0020-panel-brightness.patch:v2.7.1|intelfb-0020-panel-brightness.patch:v2.7.2)
       echo "skip: upstream $REV already provides NMIntelBacklight; do not register a second backlight service"
       continue ;;
+    intelfb-0022-nvdisplaypointers.patch:v2.7.2)
+      echo "skip: superseded by the rebased 2.7.2 patch 0023"
+      continue ;;
     intelfb-0022-nvdisplaypointers.patch:*)
+      echo "skip: nvDisplayPointers patch is specific to v2.7.2"
+      continue ;;
+    intelfb-0023-nvdisplaypointers-2.7.2.patch:*)
       if [ "$REV" != "v2.7.2" ]; then
-        echo "skip: nvDisplayPointers port is specific to v2.7.2"
+        echo "skip: rebased nvDisplayPointers patch is specific to v2.7.2"
         continue
       fi ;;
   esac

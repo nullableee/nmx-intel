@@ -5,13 +5,13 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
  extern "C" {
  #include "nvkms-kapi.h"
  }
- #include "AppleGraphicsDeviceControl_re.h"
- #include "nvrm-agdc-k5.h"
+ #include "AppleGraphicsDeviceControl_re.h"   // nullmoth's reconstructed header (kexts/NVRMAGDC), intelfb-0014
+ #include "nvrm-agdc-k5.h"                     // nullmoth's AGDC link/plane-scaler answers (kexts/NVRMAGDC), intelfb-0015
 +#include "nvrm_gpuva_abi.h"
 -#define NVRM_GPUVA_ABI_VERSION 1u
 -#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
 -struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
-@@ -1,12 +1,19 @@
+@@ -1,14 +1,19 @@
 -    OSNumber *k = OSDynamicCast(OSNumber, nub->getProperty("nvkms-kapi"));
      OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
 -    OSNumber *pv = OSDynamicCast(OSNumber, nub->getProperty("phys-for-va"));
@@ -31,8 +31,8 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +        ? (NvU64 (*)(const void *))displayPtrs.physForVa : nullptr;
      uint64_t bar = 0;
 -    IOService *rm = nub->getProvider();
-+    // intelfb-0012: the first range of at least 256 MB, as NVRMFB's surveyBar1 finds BAR1 (NVRM replaces the device
-+    // memory list when it places BAR1; the register lookup gave 64 MB of an 8 GB BAR1 in RTX-10)
+     // intelfb-0012: the first range of at least 256 MB, as NVRMFB's surveyBar1 finds BAR1 (NVRM replaces the device
+     // memory list when it places BAR1; the register lookup gave 64 MB of an 8 GB BAR1 in RTX-10)
      if (IOPCIDevice *pci = rm ? OSDynamicCast(IOPCIDevice, rm->getProvider()) : nullptr)
          for (IOItemCount i = 0; i < pci->getDeviceMemoryCount() && !bar; i++)
              if (IODeviceMemory *d = pci->getDeviceMemoryWithIndex(i)) if (d->getLength() >= (256ull << 20)) bar = d->getLength();

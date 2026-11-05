@@ -1,7 +1,7 @@
 diff -ruN a/intelfb.cpp src/intelfb.cpp
 --- a/intelfb.cpp
 +++ b/intelfb.cpp
-@@ -1,9 +1,6 @@
+@@ -1,6 +1,4 @@
  extern "C" {
  #include "nvkms-kapi.h"
  }
@@ -9,7 +9,7 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 -#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
 -struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
 +#include "nvrm_gpuva_abi.h"
-@@ -1,18 +1,25 @@
+@@ -1,11 +1,17 @@
 -    OSNumber *k = OSDynamicCast(OSNumber, nub->getProperty("nvkms-kapi"));
      OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
 -    OSNumber *pv = OSDynamicCast(OSNumber, nub->getProperty("phys-for-va"));
@@ -29,13 +29,16 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +        ? (NvU64 (*)(const void *))displayPtrs.physForVa : nullptr;
      uint64_t bar = 0;
 -    IOService *rm = nub->getProvider();
++    // intelfb-0012: find the first large BAR range, as NVRMFB does after NVRM replaces the PCI memory list.
      if (IOPCIDevice *pci = rm ? OSDynamicCast(IOPCIDevice, rm->getProvider()) : nullptr)
-         if (IODeviceMemory *b1 = pci->getDeviceMemoryWithRegister(kIOPCIConfigBaseAddress1)) bar = b1->getLength();
-@@ -1,7 +1,7 @@
+-        if (IODeviceMemory *b1 = pci->getDeviceMemoryWithRegister(kIOPCIConfigBaseAddress1)) bar = b1->getLength();
++        for (IOItemCount i = 0; i < pci->getDeviceMemoryCount() && !bar; i++)
++            if (IODeviceMemory *d = pci->getDeviceMemoryWithIndex(i)) if (d->getLength() >= (256ull << 20)) bar = d->getLength();
+@@ -1,1 +1,2 @@
 -        ifb_trail("kapi-none"); IFBLOG("kapi: nub lacks nvkms-kapi/gpu-id/phys-for-va or BAR1 (%llu)", bar); nub->release(); return;
 +        ifb_trail("kapi-none"); IFBLOG("kapi: nvDisplayPointers failed (0x%x), gpu-id or BAR1 missing (%llu)",
 +                                      (unsigned)displayPtrsResult, bar); nub->release(); return;
-@@ -1,7 +1,7 @@
+@@ -1,1 +1,2 @@
 -        static const char *const kCopy[] = {"nvkms-kapi", "gpu-id", "phys-for-va"};
 +        // Kernel pointers are obtained from the NVRM provider through nvDisplayPointers; never publish them in IORegistry.
 +        static const char *const kCopy[] = {"gpu-id"};

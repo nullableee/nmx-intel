@@ -29,7 +29,14 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
         continue
       fi ;;
   esac
-  patch -s -d "$W/src" -p1 < "$p"
+  if ! patch --verbose -d "$W/src" -p1 < "$p"; then
+    for rej in "$W/src"/*.rej; do
+      [ -f "$rej" ] || continue
+      echo "REJECTED HUNKS: $rej" >&2
+      cat "$rej" >&2
+    done
+    exit 1
+  fi
   echo "patch: $(basename "$p")"
 done
 if [ "$REV" = "v2.7.2" ]; then

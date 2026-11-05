@@ -9,7 +9,7 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 -#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
 -struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
 +#include "nvrm_gpuva_abi.h"
-@@ -1,11 +1,17 @@
+@@ -1,11 +1,18 @@
 -    OSNumber *k = OSDynamicCast(OSNumber, nub->getProperty("nvkms-kapi"));
      OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
 -    OSNumber *pv = OSDynamicCast(OSNumber, nub->getProperty("phys-for-va"));

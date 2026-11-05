@@ -3,10 +3,11 @@
 from pathlib import Path
 import sys
 
-if len(sys.argv) != 2:
-    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp")
+if len(sys.argv) not in (2, 3):
+    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp [early|kapi]")
 
 path = Path(sys.argv[1])
+mode = sys.argv[2] if len(sys.argv) == 3 else "early"
 source = path.read_text()
 
 
@@ -73,5 +74,34 @@ replace_once(
 "dependent-ID before IOFramebuffer::start",
 )
 
+elif mode == "kapi":
+    replace_once(
+'''    armVbl();
+    ifb_trail("vbl");
+    registerPowerDriver(this, kPowerStates, 2);''',
+'''    armVbl();
+    ifb_trail("vbl");
+    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
+    registerPowerDriver(this, kPowerStates, 2);''',
+    "initialize the primary NVKMS device after VBL startup",
+    )
+else:
+    raise SystemExit(f"unknown mode: {mode}")
+
 path.write_text(source)
-print(f"Applied the v2.7.2 NMX start-order port: {path}")
+print(f"Applied the v2.7.2 NMX {mode} port: {path}")elif mode == "kapi":
+    replace_once(
+'''    armVbl();
+    ifb_trail("vbl");
+    registerPowerDriver(this, kPowerStates, 2);''',
+'''    armVbl();
+    ifb_trail("vbl");
+    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
+    registerPowerDriver(this, kPowerStates, 2);''',
+    "initialize the primary NVKMS device after VBL startup",
+    )
+else:
+    raise SystemExit(f"unknown mode: {mode}")
+
+path.write_text(source)
+print(f"Applied the v2.7.2 NMX {mode} port: {path}")

@@ -1,7 +1,7 @@
 diff -ruN a/intelfb.cpp src/intelfb.cpp
 --- a/intelfb.cpp
 +++ b/intelfb.cpp
-@@ -1,8 +1,6 @@
+@@ -1,6 +1,6 @@
  extern "C" {
  #include "nvkms-kapi.h"
  }
@@ -34,10 +34,8 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
 +    // intelfb-0012: the first range of at least 256 MB, as NVRMFB's surveyBar1 finds BAR1 (NVRM replaces the device
 +    // memory list when it places BAR1; the register lookup gave 64 MB of an 8 GB BAR1 in RTX-10)
      if (IOPCIDevice *pci = rm ? OSDynamicCast(IOPCIDevice, rm->getProvider()) : nullptr)
--        for (IOItemCount i = 0; i < pci->getDeviceMemoryCount() && !bar; i++)
--            if (IODeviceMemory *d = pci->getDeviceMemoryWithIndex(i)) if (d->getLength() >= (256ull << 20)) bar = d->getLength();
-+        for (IOItemCount i = 0; i < pci->getDeviceMemoryCount() && !bar; i++)
-+            if (IODeviceMemory *d = pci->getDeviceMemoryWithIndex(i)) if (d->getLength() >= (256ull << 20)) bar = d->getLength();
+         for (IOItemCount i = 0; i < pci->getDeviceMemoryCount() && !bar; i++)
+             if (IODeviceMemory *d = pci->getDeviceMemoryWithIndex(i)) if (d->getLength() >= (256ull << 20)) bar = d->getLength();
 @@ -1,1 +1,2 @@
 -        ifb_trail("kapi-none"); IFBLOG("kapi: nub lacks nvkms-kapi/gpu-id/phys-for-va or BAR1 (%llu)", bar); nub->release(); return;
 +        ifb_trail("kapi-none"); IFBLOG("kapi: nvDisplayPointers failed (0x%x), gpu-id or BAR1 missing (%llu)",

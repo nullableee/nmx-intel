@@ -4,6 +4,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
 REV=${REV:-v2.7.2}
+[ "$REV" = "v2.7.2" ] || { echo "STOP: this rebased build helper targets v2.7.2 only." >&2; exit 1; }
 W=$HOME/nmx-build/intelfb
 rm -rf "$W/src" "$W/out" && mkdir -p "$W/src" "$W/out/NMIntelFB.kext/Contents/MacOS"
 git -C "$NM" archive "$REV" kexts/NMIntelFB | tar -x -C "$W/src" --strip-components 2
@@ -11,8 +12,6 @@ if [ "$REV" = "v2.7.2" ]; then
   # The protected display-pointer ABI is shared with NVRM; compile against the exact header from the selected tag.
   git -C "$NM" show "$REV:kexts/NVRM/nvrm_gpuva_abi.h" > "$W/src/nvrm_gpuva_abi.h"
 fi
-git -C "$W/src" init -q
-git -C "$W/src" add -A
 for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   [ -f "$p" ] || continue
   case "$(basename "$p"):$REV" in

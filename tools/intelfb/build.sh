@@ -1,24 +1,28 @@
 #!/bin/bash
-# NMIntelFB build is intentionally blocked for 2.7.2 until the NMX bridge is ported to nvDisplayPointers.
+# Build the NMX Intel-panel bridge against a selected NullMoth release.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
 REV=${REV:-v2.7.2}
-if [ "$REV" = "v2.7.2" ]; then
-  echo "STOP: NMX's synthetic Intel-panel nub still uses the removed nvkms-kapi/phys-for-va IORegistry properties." >&2
-  echo "Port it to NVRM's nvDisplayPointers callPlatformFunction API before building 2.7.2." >&2
-  echo "See $HERE/docs/knowledge/nullmoth-2.7.2-migration.md" >&2
-  exit 1
-fi
 W=$HOME/nmx-build/intelfb
 rm -rf "$W/src" "$W/out" && mkdir -p "$W/src" "$W/out/NMIntelFB.kext/Contents/MacOS"
 git -C "$NM" archive "$REV" kexts/NMIntelFB | tar -x -C "$W/src" --strip-components 2
+if [ "$REV" = "v2.7.2" ]; then
+  # The protected display-pointer ABI is shared with NVRM; compile against the exact header from the selected tag.
+  git -C "$NM" show "$REV:kexts/NVRM/nvrm_gpuva_abi.h" > "$W/src/nvrm_gpuva_abi.h"
+fi
 for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   [ -f "$p" ] || continue
-  if [ "$REV" = "v2.7.1" ] && [ "$(basename "$p")" = "intelfb-0020-panel-brightness.patch" ]; then
-    echo "skip: upstream $REV already provides NMIntelBacklight; do not register a second backlight service"
-    continue
-  fi
+  case "$(basename "$p"):$REV" in
+    intelfb-0020-panel-brightness.patch:v2.7.1|intelfb-0020-panel-brightness.patch:v2.7.2)
+      echo "skip: upstream $REV already provides NMIntelBacklight; do not register a second backlight service"
+      continue ;;
+    intelfb-0022-nvdisplaypointers.patch:*)
+      if [ "$REV" != "v2.7.2" ]; then
+        echo "skip: nvDisplayPointers port is specific to v2.7.2"
+        continue
+      fi ;;
+  esac
   patch -s -d "$W/src" -p1 < "$p"
   echo "patch: $(basename "$p")"
 done

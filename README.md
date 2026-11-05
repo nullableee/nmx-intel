@@ -72,4 +72,24 @@ for the copy engine. Both are release-specific and are not validated for 2.7.2. 
 
 Before the NVIDIA route, this repo ported Linux's i915 to macOS through nullmoth's NMXGPU (its drm-kmod port, enabled
 by the 1401 app's "AMD / Intel" test driver). i915 drives the panel at 1920x1080, 144 Hz, and the desktop is stable,
-but WindowServer still compos
+but WindowServer still composites in software, so it is parked. Build steps and history are in
+[docs/index.md](docs/index.md); the sources live in `build/` and `source-fixes/`.
+
+## Repo layout
+
+```
+tools/intelfb/   build, install and boot job for NMIntelFB (historical route)
+tools/accel/     patched NVAccel (optional speedup)
+tools/nvrm/      NVRM byte patch (optional speedup)
+tools/sleep/     hibernation experiment (parked)
+tools/upgrade/   nullmoth driver upgrade helpers (2.7.1 helper is disabled)
+tools/wifi/      MediaTek MT7921 Wi-Fi
+source-fixes/    our patches: intelfb/, accel/, and the i915 port
+build/           i915 port: set up ~/nmx-build, apply fixes, build NMXGPU
+docs/            status, test logs, knowledge base (start at docs/status.md)
+```
+
+## License
+
+nullmoth's code is PolyForm Noncommercial 1.0.0 (personal and research use). This repo ships only scripts and diffs,
+never binaries, so you build the kexts yourself.

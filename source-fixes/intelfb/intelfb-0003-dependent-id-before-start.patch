@@ -7,8 +7,7 @@
 +        ifb_trail("sp-done");
          return kIOPMAckImplied;
      }
-@@ -397,24 +397,31 @@
-     { char t[64]; snprintf(t, sizeof t, "mode-%c-%ux%u-s%x", 'A' + fPipe, fWidth, fHeight, fSurf); ifb_trail(t); }
+@@ -398,8 +398,2 @@
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
 -    if (!IOFramebuffer::start(provider)) {
 -        ifb_trail("fb-start-failed");
@@ -18,18 +17,21 @@
 -    ifb_trail("fb-started");
      // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
      // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
+@@ -407,7 +401,10 @@
      if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
          fSurfMap = sm->map(kIOMapWriteCombineCache); sm->release();
      }
-+    ifb_trail(fSurfMap ? "surf" : "surf-fail");
 -    if (fSurfMap) {
++    ifb_trail(fSurfMap ? "surf" : "surf-fail");
 +    // The dependent ID selects the controller IOFramebuffer::start builds, so publish it before start().
 +    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
          setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
-+        ifb_trail("dep");
 -    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
++        ifb_trail("dep");
 +    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
+@@ -413,2 +413,8 @@
+     } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
 +    if (!IOFramebuffer::start(provider)) {
 +        ifb_trail("fb-start-failed");
 +        if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
@@ -37,10 +39,7 @@
 +    }
 +    ifb_trail("fb-started");
      setProperty("NMIntelFBPipe", fPipe, 32);
-     setProperty("NMIntelFBDisplayVersion", fVer, 32);
-     setProperty("built-in", kOSBooleanTrue);   // the panel is the laptop's own (kConnectionFlags says so too)
-     armVbl();
-     ifb_trail("vbl");
+@@ -419,3 +419,7 @@
 -    registerPowerDriver(this, kPowerStates, 2);
 -    ifb_trail("power");
 +    // Some firmware/boards hang while registering power management; leave it opt-out until target testing.
@@ -49,3 +48,4 @@
 +        registerPowerDriver(this, kPowerStates, 2);
 +        ifb_trail("power");
 +    } else ifb_trail("no-pm");
+     IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);

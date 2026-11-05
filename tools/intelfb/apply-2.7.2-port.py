@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the NMX start-order and power-guard port to NullMoth v2.7.2 NMIntelFB."""
+"""Apply the NMX start-order changes that replace intelfb-0003 on NullMoth v2.7.2."""
 from pathlib import Path
 import sys
 
@@ -18,6 +18,8 @@ def replace_once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
+# These two changes are the complete replacement for intelfb-0003. Later patches 0009 and 0012
+# refine the dependent-ID and VBL/power logic, so do not pre-apply their final state here.
 replace_once(
 '''    IOReturn setPowerState(unsigned long ordinal, IOService *) override {
         handleEvent(ordinal ? kIOFBNotifyDidPowerOn : kIOFBNotifyWillPowerOff);
@@ -33,39 +35,11 @@ replace_once(
 )
 
 replace_once(
-'''#include "nvrm_vram_abi.h"
-#include <IOKit/IOBufferMemoryDescriptor.h>''',
-'''#include "nvrm_vram_abi.h"
-// NVKMS kernel API and the RM-handles ABI answered to NVAccel by the primary framebuffer.
-extern "C" {
-#include "nvkms-kapi.h"
-}
-#define NVRM_GPUVA_ABI_VERSION 1u
-#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
-struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
-#include <IOKit/IOBufferMemoryDescriptor.h>''',
-"NVKMS KAPI include and RM-handles ABI",
-)
-
-replace_once(
-'''    armVbl();
-    ifb_trail("vbl");
-    // Some firmware/boards hang while registering power management; keep it disabled until target sleep testing.''',
-'''    armVbl();
-    ifb_trail("vbl");
-    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
-    // Some firmware/boards hang while registering power management; keep it disabled until target sleep testing.''',
-"initialize the primary NVKMS device after VBL startup",
-)
-
-replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     if (!IOFramebuffer::start(provider)) {
-        ifb_trail("fb-start-failed");
         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
         OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
     }
-    ifb_trail("fb-started");
     // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
     // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
     if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
@@ -74,8 +48,7 @@ replace_once(
     if (fSurfMap) {
         setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
         setProperty("IOFBDependentIndex", 4ull, 32);
-    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");
-    setProperty("NMIntelFBPipe", fPipe, 32);''',
+    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");''',
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
     // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
@@ -94,28 +67,9 @@ replace_once(
         if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
         OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
     }
-    ifb_trail("fb-started");
-    setProperty("NMIntelFBPipe", fPipe, 32);''',
+    ifb_trail("fb-started");''',
 "dependent-ID before IOFramebuffer::start",
 )
 
-replace_once(
-'''    armVbl();
-    ifb_trail("vbl");
-    registerPowerDriver(this, kPowerStates, 2);
-    ifb_trail("power");
-    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
-'''    armVbl();
-    ifb_trail("vbl");
-    // Some firmware/boards hang while registering power management; keep it disabled until target sleep testing.
-    if (ifb_knob("nullmoth-intelfb-pm", 0)) {
-        ifb_trail("pm");
-        registerPowerDriver(this, kPowerStates, 2);
-        ifb_trail("power");
-    } else ifb_trail("no-pm");
-    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
-"guarded power registration",
-)
-
 path.write_text(source)
-print(f"Applied 2.7.2 NMX start-order/power port: {path}")
+print(f"Applied the v2.7.2 NMX start-order port: {path}")

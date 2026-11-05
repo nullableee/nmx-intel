@@ -17,7 +17,10 @@ jobs:
         run: |
           mkdir -p "$HOME/nmx-build"
           git clone https://github.com/nullmoth/nvidia-macos-driver "$HOME/nmx-build/nvidia-macos-driver"
-          git clone --depth 1 --branch 615.78.08 https://github.com/NVIDIA/open-gpu-kernel-modules "$HOME/ogkm615"
+          git init "$HOME/ogkm615"
+          git -C "$HOME/ogkm615" remote add origin https://github.com/NVIDIA/open-gpu-kernel-modules
+          git -C "$HOME/ogkm615" fetch --depth 1 origin tag 615.78.08
+          git -C "$HOME/ogkm615" checkout -q 615.78.08
 
       - name: Build NMIntelFB with the 2.7.2 protected-pointer port
         run: bash tools/intelfb/build.sh

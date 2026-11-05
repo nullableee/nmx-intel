@@ -31,7 +31,7 @@ The port on branch `upgrade/nullmoth-2.7.2` makes the following changes:
 - The AGDC compatibility path is rebased, including the link-configuration and plane-scaler query responses and panel timing publication.
 - The four NMX NVAccel patches are replayed on a clean v2.7.2 worktree.
 
-The 2.7.2 build workflow passed on macOS 15 / Xcode 16.4. NMIntelFB compiled to 120,544 bytes (SHA-256 prefix `c40f9c77`). NVAccel built for macOS 15 (SHA-256 prefix `ce79ccff`) and macOS 26 (prefix `6dbc226e`), from patched source head `67a1b04` with VRAM ABI 2. This is compile validation only; it does not prove that the kexts load, that the panel displays, or that frame pacing is correct.
+The 2.7.2 build workflow passed on macOS 15 / Xcode 16.4. NMIntelFB compiled to 120,544 bytes (SHA-256 prefix `c40f9c77`). NVAccel built for macOS 15 (SHA-256 prefix `ce79ccff`) and macOS 26 (prefix `6dbc226e`), from patched source head `28c7edc` with VRAM ABI 2. This is compile validation only; it does not prove that the kexts load, that the panel displays, or that frame pacing is correct.
 
 ## Other migration consequences
 

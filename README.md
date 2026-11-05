@@ -15,14 +15,16 @@ work too.
 
 ## Compatibility status
 
-The historical bridge was tested on 2.3.6. The 2.7.1 migration was superseded by upstream 2.7.2 before it was
-validated. The current migration targets `v2.7.2`. A source-level port now changes the synthetic Intel-panel nub to copy only
-`gpu-id` and obtains the KAPI/physical-VA pointers through the protected `nvDisplayPointers` API. The build script stages
-the shared ABI header and has fail-closed checks for the removed public properties. This port has not yet been applied
-and compiled on a macOS build host. See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
+The historical bridge was tested on 2.3.6 only. The current port targets NullMoth `v2.7.2` and adapts the
+Intel-panel bridge to the protected `nvDisplayPointers` API: the synthetic display nub carries only `gpu-id`, while
+NMIntelFB obtains KAPI and physical-VA pointers from its NVRM provider and keeps them kernel-private. The port also
+rebases the NMX AGDC link/timing path and NVAccel changes. A macOS 15 compile check is running in
+[GitHub Actions](https://github.com/nullableee/nmx-intel/actions); there is not yet a boot test on target hardware.
+See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
 
-The optional NVAccel and NVRM optimizations are also unvalidated for 2.7.2. Do not reuse old NVRM binary offsets or
-claim compatibility based only on a successful source rebase.
+The NVRM binary sleep patch remains disabled: no exact 2.7.2 package hash, offsets, and disassembly have been verified.
+Do not reuse old NVRM binary offsets. Tahoe 26 builds are prepared for NVAccel, but installation of the Intel-panel
+bridge remains blocked until its AGDC ABI is validated on Tahoe.
 
 ## Will it work on my laptop?
 
@@ -51,8 +53,28 @@ use the same display registers and should behave the same, but nobody has tried 
 
 ## Install
 
-Do not follow the historical install/build procedure for a 2.7.2 setup yet. The bridge is not ported to the new
-protected display-pointer API. Keep the known-good 2.3.6 setup and recovery path until the migration audit's gates pass.
+The 2.7.2 build is separate from installation. From the repository root:
+
+```bash
+bash tools/upgrade/build-2.7.2.sh
+```
+
+This builds NMIntelFB and NVAccel for Sequoia 15 and NVAccel for Tahoe 26; it does not install anything. The
+transactional installer is Sequoia-only and checks that the installed NVRM/NVRMFB expose `nvDisplayPointers`:
+
+```bash
+sudo bash tools/upgrade/install-2.7.2.sh
+```
+
+Rollback to the NMIntelFB and NVAccel kexts saved before the first install:
+
+```bash
+sudo bash tools/upgrade/install-2.7.2.sh restore
+```
+
+Do not install until the macOS build workflow passes. Neither Sequoia nor Tahoe has been boot-tested on the GIGABYTE
+G6 MF. The installer deliberately blocks Tahoe 26 until the private AGDC ABI has been validated there. Keep a
+bootable OpenCore recovery path and the current working kext backups.
 
 ## Known limits
 
@@ -82,7 +104,7 @@ tools/intelfb/   build, install and boot job for NMIntelFB (historical route)
 tools/accel/     patched NVAccel (optional speedup)
 tools/nvrm/      NVRM byte patch (optional speedup)
 tools/sleep/     hibernation experiment (parked)
-tools/upgrade/   nullmoth driver upgrade helpers (2.7.1 helper is disabled)
+tools/upgrade/   2.7.2 build, install and rollback helpers
 tools/wifi/      MediaTek MT7921 Wi-Fi
 source-fixes/    our patches: intelfb/, accel/, and the i915 port
 build/           i915 port: set up ~/nmx-build, apply fixes, build NMXGPU

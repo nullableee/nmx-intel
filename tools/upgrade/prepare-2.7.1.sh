@@ -15,10 +15,11 @@ BRANCH=nmx-accel-271
 command -v git >/dev/null || { echo "STOP: git is required" >&2; exit 1; }
 [ -d "$NM/.git" ] || { echo "STOP: clone NullMoth to $NM first" >&2; exit 1; }
 [ -d "$PATCHDIR" ] || { echo "STOP: missing NMX patch series: $PATCHDIR" >&2; exit 1; }
+compgen -G "$PATCHDIR/*.patch" >/dev/null || { echo "STOP: no .patch files in $PATCHDIR" >&2; exit 1; }
 shopt -s nullglob
 patches=("$PATCHDIR"/*.patch)
-[ "${#patches[@]}" -gt 0 ] || { echo "STOP: no .patch files in $PATCHDIR" >&2; exit 1; }
 
+mkdir -p "$(dirname "$PATCH_SRC")" "$(dirname "$SRC")"
 git -C "$NM" fetch --tags origin
 git -C "$NM" rev-parse --verify "$BASE^{commit}" >/dev/null
 git -C "$NM" rev-parse --verify "$TAG^{commit}" >/dev/null

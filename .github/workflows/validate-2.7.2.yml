@@ -23,17 +23,12 @@ jobs:
         run: bash tools/intelfb/build.sh
         env:
           REV: v2.7.2
-          NM: ${{ github.workspace }}/../nvidia-macos-driver
 
       - name: Prepare NMX NVAccel worktree
         run: bash tools/upgrade/prepare-2.7.2.sh
         env:
           REV: v2.7.2
-          NM: ${{ github.workspace }}/../nvidia-macos-driver
 
       - name: Build patched NVAccel
         run: bash tools/accel/build.sh
-        env:
-          SRC: ${{ runner.temp }}/nmx-build/accel/src-272
-          OUT: ${{ runner.temp }}/nmx-build/accel/out
-          OGKM: ${{ runner.temp }}/ogkm615
+ 

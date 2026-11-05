@@ -36,19 +36,24 @@ replace_once(
 
 replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
-    if (!IOFramebuffer::start(provider)) {
-        if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
-        OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
-    }
     // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
     // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.
     if (IODeviceMemory *sm = IODeviceMemory::withRange(fApertureBase + fSurf, (IOPhysicalLength)fRowBytes * fHeight)) {
         fSurfMap = sm->map(kIOMapWriteCombineCache); sm->release();
     }
-    if (fSurfMap) {
+    ifb_trail(fSurfMap ? "surf" : "surf-fail");
+    // The dependent ID selects the controller IOFramebuffer::start builds, so publish it before start().
+    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
         setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
         setProperty("IOFBDependentIndex", 4ull, 32);
-    } else IFBLOG("the surface would not map write-combined: NVIDIA rendering stays off for this panel");''',
+        ifb_trail("dep");
+    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
+    if (!IOFramebuffer::start(provider)) {
+        ifb_trail("fb-start-failed");
+        if (fBacklight) { fBacklight->detach(this); OSSafeReleaseNULL(fBacklight); }
+        OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false;
+    }
+    ifb_trail("fb-started");''',
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     // Head 4 of the NVIDIA accelerator (NVAccel): WindowServer composites this panel on the NVIDIA card and the
     // display pipe copies each frame into fSurfMap. Without NVAccel the panel stays a plain framebuffer.

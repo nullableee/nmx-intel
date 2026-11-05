@@ -17,11 +17,18 @@ git -C "$NM" rev-parse -q --verify "refs/tags/$REV" >/dev/null || {
   echo "missing upstream tag $REV in $NM" >&2; exit 1;
 }
 
-if [ ! -d "$OGKM/src/nvidia" ]; then
+if [ -d "$OGKM/.git" ]; then
+  git -C "$OGKM" fetch --tags origin
+  git -C "$OGKM" checkout --detach 615.78.08
+elif [ ! -e "$OGKM" ]; then
   git clone --depth 1 --branch 615.78.08 https://github.com/NVIDIA/open-gpu-kernel-modules "$OGKM"
+else
+  echo "OGKM path exists but is not a git repository: $OGKM" >&2
+  exit 1
 fi
 
-export NM OGKM REV
+OGKM_TAG=615.78.08
+export NM OGKM OGKM_TAG REV
 bash "$HERE/tools/intelfb/build.sh"
 bash "$HERE/tools/upgrade/prepare-2.7.2.sh"
 bash "$HERE/tools/accel/build.sh"

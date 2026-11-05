@@ -1,6 +1,6 @@
 #!/bin/bash
-# build.sh: builds NVAccel (nullmoth's accelerator kext) from our branch nmx-accel-271 (worktree ~/nmx-build/accel/src-271,
-# based on v2.7.1; patches replayed from source-fixes/accel/v2.6.4) into ~/nmx-build/accel/out/NVAccel.kext. Needs NVIDIA open-gpu-kernel-modules at tag 615.78.08
+# build.sh: builds NVAccel (nullmoth's accelerator kext) from our branch nmx-accel-272 (worktree ~/nmx-build/accel/src-272,
+# based on v2.7.2; patches replayed from source-fixes/accel/v2.6.4) into ~/nmx-build/accel/out/NVAccel.kext. Needs NVIDIA open-gpu-kernel-modules at tag 615.78.08
 # in ~/ogkm615 (git clone --depth 1 --branch 615.78.08 https://github.com/NVIDIA/open-gpu-kernel-modules ~/ogkm615).
 # nullmoth's build reads the RM -D flags from a Darwin RM build (_out/Darwin_x86_64/compile_cmds.sh) that is not
 # public; this writes one with the defines of upstream src/nvidia/Makefile for x86_64. Built from v2.1.0 the result
@@ -9,9 +9,9 @@
 # with 144 B, and the 610 and 615 trees give byte-identical output; from v2.5.4 and v2.6.4 with 128 B. Older branches still build with SRC=… (OGKM=~/ogkm610 before 2.5):
 # nmx-accel-254 (~/nmx-build/accel/src-254, v2.5.4), nmx-accel-250 (~/nmx-build/accel/src-250, v2.5.0), nmx-accel-236 (~/nmx-build/accel/src-236, v2.3.6), nmx-accel (~/nmx-build/accel/src, v2.1.0).
 set -uo pipefail
-SRC=${SRC:-$HOME/nmx-build/accel/src-271}; OUT=${OUT:-$HOME/nmx-build/accel/out}; OGKM=${OGKM:-$HOME/ogkm615}
+SRC=${SRC:-$HOME/nmx-build/accel/src-272}; OUT=${OUT:-$HOME/nmx-build/accel/out}; OGKM=${OGKM:-$HOME/ogkm615}
 [ -d "$OGKM/src/nvidia" ] || { echo "missing $OGKM (open-gpu-kernel-modules 615.78.08)"; exit 1; }
-[ -d "$SRC/kexts/NVRM/accel" ] || { echo "missing $SRC (run: bash tools/upgrade/prepare-2.7.1.sh)"; exit 1; }
+[ -d "$SRC/kexts/NVRM/accel" ] || { echo "missing $SRC (run: bash tools/upgrade/prepare-2.7.2.sh)"; exit 1; }
 CC=$OGKM/src/nvidia/_out/Darwin_x86_64/compile_cmds.sh
 if [ ! -f "$CC" ]; then
   mkdir -p "$(dirname "$CC")"

@@ -19,7 +19,7 @@ mkdir -p "$(dirname "$OUT")"
   /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$SRCK/Contents/Info.plist" 2>&1 || true
   echo
   echo "Mach-O __TEXT segments:"
-  otool -l "$BIN" | grep -A30 -B2 "segname __TEXT"'
+  otool -l "$BIN" | grep -A30 -B2 "segname __TEXT"
   echo
   echo "Symbols:"
   nm -gU "$BIN" | grep -E '(^| )_?(os_delay|osDelayUs)$' || true

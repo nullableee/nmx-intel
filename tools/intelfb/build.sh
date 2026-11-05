@@ -5,12 +5,16 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
-REV=${REV:-v2.5.4}   # keep the last patch-tested base; try REV=v2.7.1 only after checking all intelfb patches apply
+REV=${REV:-v2.7.1}   # upstream now has its own NMIntelBacklight; skip our duplicate intelfb-0020 below
 W=$HOME/nmx-build/intelfb
 rm -rf "$W/src" "$W/out" && mkdir -p "$W/src" "$W/out/NMIntelFB.kext/Contents/MacOS"
 git -C "$NM" archive "$REV" kexts/NMIntelFB | tar -x -C "$W/src" --strip-components 2
 for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   [ -f "$p" ] || continue
+  if [ "$REV" = "v2.7.1" ] && [ "$(basename "$p")" = "intelfb-0020-panel-brightness.patch" ]; then
+    echo "skip: upstream $REV already provides NMIntelBacklight; do not register a second backlight service"
+    continue
+  fi
   patch -s -d "$W/src" -p1 < "$p"
   echo "patch: $(basename "$p")"
 done

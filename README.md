@@ -28,8 +28,9 @@ You need all of these:
 - Xcode Command Line Tools (`xcode-select --install`), git, and internet access during the build (it downloads a
   few NVIDIA headers).
 - nullmoth's NVIDIA driver. The original Intel-panel bridge was tested on 2.3.6; the 2.7.1 source migration is in progress.
-  NMIntelFB's upstream source and shared ABI headers are unchanged through 2.7.1, but the optional NVAccel/NVRM
-  optimizations are not considered compatible until rebuilt and validated. See
+  NMIntelFB's source is unchanged from 2.6.6 to 2.7.1, but upstream added backlight support between 2.5.4 and 2.6.6,
+  so the existing Intel framebuffer patch series must be checked against 2.7.1 before changing its build base. The shared
+  ABI headers are unchanged; optional NVAccel/NVRM optimizations are not considered compatible until rebuilt and validated. See
   [the 2.7.1 migration notes](docs/knowledge/nullmoth-2.7.1-migration.md) and [the upgrade runbook](docs/knowledge/nullmoth-upgrade.md).
 
 To see your iGPU's device ID:

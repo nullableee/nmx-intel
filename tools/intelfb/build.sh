@@ -1,11 +1,15 @@
 #!/bin/bash
-# Compila o NMIntelFB do nullmoth (kexts/NMIntelFB, framebuffer do painel interno ligado na Intel) com os nossos
-# patches (source-fixes/intelfb/*.patch). Fonte: o clone em ~/nmx-build/nvidia-macos-driver, na revisão $REV.
-# Saída: ~/nmx-build/intelfb/out/NMIntelFB.kext. Não versionamos o binário (licença PolyForm Noncommercial).
+# NMIntelFB build is intentionally blocked for 2.7.2 until the NMX bridge is ported to nvDisplayPointers.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
-REV=${REV:-v2.7.1}   # upstream now has its own NMIntelBacklight; skip our duplicate intelfb-0020 below
+REV=${REV:-v2.7.2}
+if [ "$REV" = "v2.7.2" ]; then
+  echo "STOP: NMX's synthetic Intel-panel nub still uses the removed nvkms-kapi/phys-for-va IORegistry properties." >&2
+  echo "Port it to NVRM's nvDisplayPointers callPlatformFunction API before building 2.7.2." >&2
+  echo "See $HERE/docs/knowledge/nullmoth-2.7.2-migration.md" >&2
+  exit 1
+fi
 W=$HOME/nmx-build/intelfb
 rm -rf "$W/src" "$W/out" && mkdir -p "$W/src" "$W/out/NMIntelFB.kext/Contents/MacOS"
 git -C "$NM" archive "$REV" kexts/NMIntelFB | tar -x -C "$W/src" --strip-components 2
@@ -18,9 +22,7 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   patch -s -d "$W/src" -p1 < "$p"
   echo "patch: $(basename "$p")"
 done
-# intelfb-0011 needs NVKMS's kernel API headers, from NVIDIA's open-gpu-kernel-modules at the tag NVRM is built from
-# (MIT/GPL; fetched once per tag, not versioned here). 2.5.0 moved NVRM to 615.78.08; the 610 and 615 headers give
-# the same NMIntelFB binary (the members we use did not move).
+# intelfb-0011 needs NVKMS's kernel API headers, from NVIDIA's open-gpu-kernel-modules at the tag NVRM is built from.
 OGKM_TAG=${OGKM_TAG:-615.78.08}; KAPI=$W/kapi-hdr-$OGKM_TAG
 if [ ! -s "$KAPI/nvkms-kapi.h" ]; then
   mkdir -p "$KAPI"

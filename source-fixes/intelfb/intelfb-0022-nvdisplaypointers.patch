@@ -1,0 +1,41 @@
+diff -ruN a/intelfb.cpp src/intelfb.cpp
+--- a/intelfb.cpp
++++ b/intelfb.cpp
+@@ -1,9 +1,6 @@
+ extern "C" {
+ #include "nvkms-kapi.h"
+ }
+-#define NVRM_GPUVA_ABI_VERSION 1u
+-#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
+-struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
++#include "nvrm_gpuva_abi.h"
+@@ -1,18 +1,25 @@
+-    OSNumber *k = OSDynamicCast(OSNumber, nub->getProperty("nvkms-kapi"));
+     OSNumber *g = OSDynamicCast(OSNumber, nub->getProperty("gpu-id"));
+-    OSNumber *pv = OSDynamicCast(OSNumber, nub->getProperty("phys-for-va"));
+-    fKms = k ? (struct NvKmsKapiFunctionsTable *)(uintptr_t)k->unsigned64BitValue() : nullptr;
+-    fPhysForVa = pv ? (NvU64 (*)(const void *))(uintptr_t)pv->unsigned64BitValue() : nullptr;
++    IOService *rm = nub->getProvider();
++    struct NVRMDisplayPointers displayPtrs = {};
++    displayPtrs.version = NVRM_DISPLAY_PTRS_ABI_VERSION;
++    const OSSymbol *displayPtrsFn = OSSymbol::withCString(NVRM_DISPLAY_PTRS_FN);
++    IOReturn displayPtrsResult = kIOReturnNotFound;
++    if (rm && displayPtrsFn)
++        displayPtrsResult = rm->callPlatformFunction(displayPtrsFn, false, &displayPtrs, NULL, NULL, NULL);
++    if (displayPtrsFn) displayPtrsFn->release();
++    fKms = displayPtrsResult == kIOReturnSuccess
++        ? (struct NvKmsKapiFunctionsTable *)displayPtrs.kapi : nullptr;
++    fPhysForVa = displayPtrsResult == kIOReturnSuccess
++        ? (NvU64 (*)(const void *))displayPtrs.physForVa : nullptr;
+     uint64_t bar = 0;
+-    IOService *rm = nub->getProvider();
+     if (IOPCIDevice *pci = rm ? OSDynamicCast(IOPCIDevice, rm->getProvider()) : nullptr)
+         if (IODeviceMemory *b1 = pci->getDeviceMemoryWithRegister(kIOPCIConfigBaseAddress1)) bar = b1->getLength();
+@@ -1,7 +1,7 @@
+-        ifb_trail("kapi-none"); IFBLOG("kapi: nub lacks nvkms-kapi/gpu-id/phys-for-va or BAR1 (%llu)", bar); nub->release(); return;
++        ifb_trail("kapi-none"); IFBLOG("kapi: nvDisplayPointers failed (0x%x), gpu-id or BAR1 missing (%llu)",
++                                      (unsigned)displayPtrsResult, bar); nub->release(); return;
+@@ -1,7 +1,7 @@
+-        static const char *const kCopy[] = {"nvkms-kapi", "gpu-id", "phys-for-va"};
++        // Kernel pointers are obtained from the NVRM provider through nvDisplayPointers; never publish them in IORegistry.
++        static const char *const kCopy[] = {"gpu-id"};

@@ -1,13 +1,15 @@
 #!/bin/bash
-# Prepare a clean NullMoth 2.7.1 NVAccel worktree and replay the last known NMX patch series.
+# Rebase the 2.6.4 NMX NVAccel patch series onto NullMoth 2.7.1.
 # This does not build, install, or patch the NVRM binary.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 NM=${NM:-$HOME/nmx-build/nvidia-macos-driver}
+PATCH_SRC=${PATCH_SRC:-$HOME/nmx-build/accel/rebase-264}
 SRC=${SRC:-$HOME/nmx-build/accel/src-271}
 PATCHDIR=${PATCHDIR:-$HERE/source-fixes/accel/v2.6.4}
+BASE=v2.6.4
 TAG=v2.7.1
-BASE=v2.6.6
+PATCH_BRANCH=nmx-accel-264-rebase-271
 BRANCH=nmx-accel-271
 
 command -v git >/dev/null || { echo "STOP: git is required" >&2; exit 1; }
@@ -18,39 +20,52 @@ patches=("$PATCHDIR"/*.patch)
 [ "${#patches[@]}" -gt 0 ] || { echo "STOP: no .patch files in $PATCHDIR" >&2; exit 1; }
 
 git -C "$NM" fetch --tags origin
-git -C "$NM" rev-parse --verify "$TAG^{commit}" >/dev/null
 git -C "$NM" rev-parse --verify "$BASE^{commit}" >/dev/null
-[ ! -e "$SRC" ] || { echo "STOP: worktree path already exists: $SRC" >&2; exit 1; }
-if git -C "$NM" show-ref --verify --quiet "refs/heads/$BRANCH"; then
-  echo "STOP: branch $BRANCH already exists in $NM; inspect it rather than overwriting it" >&2
-  exit 1
-fi
+git -C "$NM" rev-parse --verify "$TAG^{commit}" >/dev/null
+[ ! -e "$PATCH_SRC" ] || { echo "STOP: patch worktree path already exists: $PATCH_SRC" >&2; exit 1; }
+[ ! -e "$SRC" ] || { echo "STOP: target worktree path already exists: $SRC" >&2; exit 1; }
+for b in "$PATCH_BRANCH" "$BRANCH"; do
+  if git -C "$NM" show-ref --verify --quiet "refs/heads/$b"; then
+    echo "STOP: branch $b already exists in $NM; inspect it rather than overwriting it" >&2
+    exit 1
+  fi
+done
 
-# These are the ABI and source files consumed by the NMX bridge. They were
-# verified byte-identical between v2.6.6 and v2.7.1 during the source audit.
-git -C "$NM" diff --quiet "$BASE" "$TAG" -- \
+# NMIntelFB and the shared ABIs are unchanged in 2.6.6..2.7.1. NVAccel itself
+# has a separate upstream headless-display-owner change since 2.6.4; replay
+# from the original base first, then cherry-pick onto the new tag.
+git -C "$NM" diff --quiet v2.6.6 "$TAG" -- \
   kexts/NMIntelFB/intelfb.cpp \
   kexts/NVRM/nvrm_vram_abi.h \
   kexts/NVRM/nvrm_gpuva_abi.h \
-  kexts/NVRM/nvrm_pageoff.c \
-  kexts/NVRM/accel || {
-    echo "STOP: audited upstream paths differ from the expected v2.6.6 baseline; review before rebasing" >&2
+  kexts/NVRM/nvrm_pageoff.c || {
+    echo "STOP: audited shared source/ABI paths differ from expected; review before rebasing" >&2
     exit 1
   }
 
+git -C "$NM" worktree add -b "$PATCH_BRANCH" "$PATCH_SRC" "$BASE"
+if ! git -C "$PATCH_SRC" am -3 "${patches[@]}"; then
+  echo "Patch replay onto $BASE stopped. Resolve in $PATCH_SRC, then run git am --continue (or --abort)." >&2
+  exit 1
+fi
+
 git -C "$NM" worktree add -b "$BRANCH" "$SRC" "$TAG"
-if ! git -C "$SRC" am -3 "${patches[@]}"; then
+commits=$(git -C "$PATCH_SRC" rev-list --reverse "$BASE..HEAD")
+[ -n "$commits" ] || { echo "STOP: no NMX patch commits were created on $PATCH_BRANCH" >&2; exit 1; }
+if ! git -C "$SRC" cherry-pick -x $commits; then
   echo
-  echo "PATCH REPLAY STOPPED. Resolve conflicts in $SRC, then run:"
-  echo "  git -C '$SRC' am --continue"
-  echo "Or abandon the replay with: git -C '$SRC' am --abort"
+  echo "Rebase onto $TAG needs conflict resolution in $SRC."
+  echo "Resolve each conflict, stage the files, then run: git -C '$SRC' cherry-pick --continue"
+  echo "To abandon only the target replay: git -C '$SRC' cherry-pick --abort"
   exit 1
 fi
 
 echo
-echo "Patch series applied to $TAG."
-echo "Next: build plain upstream NVAccel and patched NVAccel, compare symbols/strings/sections,"
-echo "build macOS 15 and 26 variants, and verify every NMX sysctl before deployment."
-echo "Worktree: $SRC"
-echo "Branch:   $BRANCH"
+echo "NMX patch commits replayed onto $TAG."
+echo "Review the 2.7.1 headlessDisplayOwner change and all patch hunks before building."
+echo "Build plain upstream NVAccel and patched NVAccel; compare symbols/strings/sections."
+echo "Build/test macOS 15 and 26 variants and verify every NMX sysctl before deployment."
+echo "Patch-base worktree: $PATCH_SRC"
+echo "Target worktree:     $SRC"
+echo "Target branch:       $BRANCH"
 echo "No NVRM binary patch was applied."

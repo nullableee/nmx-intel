@@ -24,14 +24,13 @@ The historical NMX Intel-panel bridge creates a synthetic `NVRMDisplay` nub unde
 the two pointer properties as a security hardening measure.
 
 **Initial source port added on branch `upgrade/nullmoth-2.7.2`:** patch
-`source-fixes/intelfb/intelfb-0022-nvdisplaypointers.patch` changes the synthetic nub to copy only `gpu-id`.
+`source-fixes/intelfb/intelfb-0023-nvdisplaypointers-2.7.2.patch` changes the synthetic nub to copy only `gpu-id`.
 The NMIntelFB KAPI setup now calls `nvDisplayPointers` on the NVRM provider, passes ABI version 1, checks the
 `callPlatformFunction` result, and keeps the returned pointers in the framebuffer's private fields. The build script
 stages the exact `nvrm_gpuva_abi.h` from the selected upstream tag and rejects a resulting source file that still
 contains either legacy IORegistry key.
 
-This is a source-level implementation only: patch application against the full 2.7.2 patch series, compilation,
-and runtime behavior are not yet verified. Do not install it yet.
+This is a source-level implementation only. The full NMIntelFB series and four NVAccel patch hunks have been checked for exact-context application in a source-level simulation. The macOS build workflow is still pending; compilation and runtime behavior are not yet verified. Do not install it yet.
 
 ## Other migration consequences
 

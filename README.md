@@ -16,10 +16,10 @@ work too.
 ## Compatibility status
 
 The historical bridge was tested on 2.3.6. The 2.7.1 migration was superseded by upstream 2.7.2 before it was
-validated. The current source audit targets `v2.7.2`, but the Intel-panel bridge is **not compatible yet**:
-2.7.2 removes the `nvkms-kapi` and `phys-for-va` IORegistry properties and replaces them with the protected
-`nvDisplayPointers` platform-function API. The NMX bridge's old pointer-copy path must be ported to that API before
-building or installing NMIntelFB. See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
+validated. The current migration targets `v2.7.2`. A source-level port now changes the synthetic Intel-panel nub to copy only
+`gpu-id` and obtains the KAPI/physical-VA pointers through the protected `nvDisplayPointers` API. The build script stages
+the shared ABI header and has fail-closed checks for the removed public properties. This port has not yet been applied
+and compiled on a macOS build host. See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
 
 The optional NVAccel and NVRM optimizations are also unvalidated for 2.7.2. Do not reuse old NVRM binary offsets or
 claim compatibility based only on a successful source rebase.

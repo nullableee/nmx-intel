@@ -19,7 +19,7 @@ The v2.6.6 → v2.7.1 release diff changes `kexts/NVRM/os-xnu.cpp` (27 additions
 
 ### Consequences for NMX
 
-- **NMIntelFB:** its upstream source and both shared ABI headers are byte-identical from 2.6.6 to 2.7.1. However, `intelfb.cpp` changed between the NMX builder's last patch-tested base (v2.5.4) and v2.7.1: upstream added a backlight handler and changed the `IOFramebuffer::start` failure cleanup. The builder therefore keeps v2.5.4 as its default. On the Mac, explicitly try `REV=v2.7.1 bash tools/intelfb/build.sh`; only switch the default after every `source-fixes/intelfb/*.patch` applies and the kext builds. Compare the resulting binary and test brightness/boot behaviour.
+- **NMIntelFB:** its upstream source and both shared ABI headers are byte-identical from 2.6.6 to 2.7.1. However, `intelfb.cpp` changed between the NMX builder's last patch-tested base (v2.5.4) and v2.7.1: upstream added a backlight handler and changed the `IOFramebuffer::start` failure cleanup. The builder therefore keeps v2.5.4 as its default. On the Mac, explicitly try `REV=v2.7.1 bash tools/intelfb/build.sh`; only switch the default after every `source-fixes/intelfb/*.patch` applies and the kext builds. This is a build-only check; do not install it before comparing hashes and testing the panel/brightness path. Compare the resulting binary and test brightness/boot behaviour.
 - **NVAccel:** the 2.6.4 → 2.7.1 history does change `nvrm-accel.cpp` in the headless-display-owner logic; it is not a no-op upgrade. The existing NMX patch series must first be applied to its original 2.6.4 base, then replayed onto 2.7.1 with three-way cherry-picks. Review the headless-check interaction, build for macOS 15 and 26, compare symbols/strings/sections, and check all NMX sysctls before support is claimed.
 - **NVRM copy-engine patch:** `nvrm_pageoff.c` is byte-identical, and the contiguous-run wait still uses the 200000-spin timeout and `osDelayUs(10)`. However, `os-xnu.cpp` changed, which can move code and symbols in the packaged NVRM binary. The 2.6.4 file offsets, rel32 displacement, and SHA-256 must not be reused. The second per-page fallback wait loop also remains in the source; the existing NMX patch description targets only the contiguous-run path.
 - **Installer:** 2.7.1 changes `package/install.sh`; read and verify the official package before installation. The release also fixes permissions on `/Library/NullMoth` for the ARM translator.
@@ -40,13 +40,13 @@ After the NVAccel patches apply:
 SRC=~/nmx-build/accel/src-271 OUT=~/nmx-build/accel/out-271 bash tools/accel/build.sh
 ```
 
-Compare the resulting NVAccel against the unpatched upstream 2.7.1 build before installing. Build both macOS 15 and 26 variants; the upstream helper is `build/accel_build_all.sh kexts/NVRM <out>`. Rebuild both variants whenever either shared ABI header changes.
+Compare the resulting NVAccel against the unpatched upstream 2.7.1 build before installing. Build the target macOS 15 variant for the Sequoia test machine. If adding Tahoe support, build the macOS 26 variant separately with `NM_TAHOE=1` and keep its output separate. Rebuild every target variant whenever either shared ABI header changes.
 
 ## NVRM binary patch — still blocked on package evidence
 
 The exact 2.7.1 NVRM binary hash and function offsets have not been obtained from the official release tarball in this environment. Therefore `tools/nvrm/build.sh` intentionally remains fail-closed for 2.7.1.
 
-On the Mac, download `nullmoth-nvidia-2.7.1.tar.gz` and `SHA256SUMS.txt` from the official release. Verify the archive and the inner package manifest, then inspect:
+On the Mac, download `nullmoth-nvidia-2.7.1.tar.gz` and `SHA256SUMS.txt` from the official release. Verify the archive and the inner package manifest, then run `SRCK=<pkgroot>/Library/Extensions/NVRM.kext bash tools/upgrade/inspect-nvrm-2.7.1.sh` (read-only). It records the full binary hash, Mach-O layout, symbols, and delay-call disassembly in `~/nmx-build/nvrm/inspect-2.7.1.txt`. The equivalent manual commands are:
 
 ```bash
 otool -tV -p _nvrm_ce_copy_to_pages <pkgroot>/Library/Extensions/NVRM.kext/Contents/MacOS/NVRM

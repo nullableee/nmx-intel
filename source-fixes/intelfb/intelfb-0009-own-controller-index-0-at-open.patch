@@ -24,24 +24,20 @@ diff -ruN a/intelfb.cpp src/intelfb.cpp
      bool isConsoleDevice() override { IFB_ONCE("con"); return true; }
      IODeviceMemory *getApertureRange(IOPixelAperture aperture) override;
      const char *getPixelFormats() override { return IO32BitDirectPixels "\0"; }
-@@ -513,11 +522,16 @@
+@@ -513,8 +522,12 @@
      ifb_trail(fSurfMap ? "surf" : "surf-fail");
-     // nmx-intel (RTX-2 hung in registerPowerDriver with these set after IOFramebuffer::start): the dependent ID decides
-     // the controller IOFramebuffer::start builds, so it goes in before, as NVRMFB does. nullmoth-intelfb-dep=0
--    // publishes a plain framebuffer, without joining NVAccel as head 4
+     // The dependent ID selects the controller IOFramebuffer::start builds, so publish it before start().
 -    if (fSurfMap && ifb_knob("nullmoth-intelfb-dep", 1)) {
--        setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
-+    // publishes a plain framebuffer, without joining NVAccel as head 4.
-+    // intelfb-0009: on a laptop with nothing on the NVIDIA ports no NVRMFB head ever starts (NVRM "heads 0x0"), so in
-+    // NVRM's group this panel sat alone at index 4 with fFbs[0] NULL. Default (dep=1): a controller of its own (see
-+    // open()); dep=2 keeps NVRM's group as before. Index 4 at publish is what makes NVAccel treat it as head 4.
++    // intelfb-0009: NVAccel consumes index 4 at publish time; IOGraphics later opens this panel as index 0.
++    // When no NVIDIA display head exists, give the Intel panel its own controller group rather than leaving fFbs[0] NULL.
 +    uint32_t dep = fSurfMap ? ifb_knob("nullmoth-intelfb-dep", 1) : 0;
 +    if (dep) {
 +        fOwnGroup = dep != 2;
+-        setProperty("IOFBDependentID", 0x4E56524D00000001ull, 64);
 +        setProperty("IOFBDependentID", fOwnGroup ? 0x4E4D494E00000001ull : 0x4E56524D00000001ull, 64);
          setProperty("IOFBDependentIndex", 4ull, 32);
 -        ifb_trail("dep");
+-    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
 +        ifb_trail(fOwnGroup ? "dep-own" : "dep-nvrm");
-     } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
++    } else IFBLOG("the surface would not map write-combined, or nullmoth-intelfb-dep=0: NVIDIA rendering stays off for this panel");
      if (!IOFramebuffer::start(provider)) { ifb_trail("fb-start-failed"); OSSafeReleaseNULL(fSurfMap); OSSafeReleaseNULL(fMMIO); fRegs = nullptr; return false; }
-     ifb_trail("fb-started");

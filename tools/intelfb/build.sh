@@ -26,6 +26,14 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   patch -s -d "$W/src" -p1 < "$p"
   echo "patch: $(basename "$p")"
 done
+if [ "$REV" = "v2.7.2" ]; then
+  grep -Fq 'NVRMDisplayPointers displayPtrs' "$W/src/intelfb.cpp" || { echo "STOP: protected display-pointer call was not applied" >&2; exit 1; }
+  grep -Fq 'NVRM_DISPLAY_PTRS_FN' "$W/src/intelfb.cpp" || { echo "STOP: nvDisplayPointers ABI symbol missing" >&2; exit 1; }
+  if grep -Eq '"nvkms-kapi"|"phys-for-va"' "$W/src/intelfb.cpp"; then
+    echo "STOP: legacy public kernel-pointer IORegistry properties remain in NMIntelFB" >&2
+    exit 1
+  fi
+fi
 # intelfb-0011 needs NVKMS's kernel API headers, from NVIDIA's open-gpu-kernel-modules at the tag NVRM is built from.
 OGKM_TAG=${OGKM_TAG:-615.78.08}; KAPI=$W/kapi-hdr-$OGKM_TAG
 if [ ! -s "$KAPI/nvkms-kapi.h" ]; then

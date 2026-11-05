@@ -18,7 +18,7 @@
 
 ## NullMoth 2.7.1 migration (work in progress)
 
-- Branch `upgrade/nullmoth-2.7.1`: source audit committed. NMIntelFB source and both shared ABI headers are byte-identical between v2.6.6 and v2.7.1; its build default now targets v2.7.1.
+- Branch `upgrade/nullmoth-2.7.1`: source audit committed. NMIntelFB source and both shared ABI headers are byte-identical between v2.6.6 and v2.7.1, but upstream added backlight code since the NMX patch-tested v2.5.4 base; the builder keeps v2.5.4 as default pending a patch/build check.
 - NVAccel rebase helper added; replay/build still requires the Mac build host. NVRM byte patch remains disabled until the official 2.7.1 package binary is hashed and disassembled.
 - Details and validation gate: [knowledge/nullmoth-2.7.1-migration.md](knowledge/nullmoth-2.7.1-migration.md).
 

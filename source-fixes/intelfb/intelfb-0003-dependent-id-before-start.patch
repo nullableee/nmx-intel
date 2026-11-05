@@ -7,7 +7,7 @@
 +        ifb_trail("sp-done");
          return kIOPMAckImplied;
      }
-@@ -420,24 +420,31 @@
+@@ -390,24 +390,31 @@
      { char t[64]; snprintf(t, sizeof t, "mode-%c-%ux%u-s%x", 'A' + fPipe, fWidth, fHeight, fSurf); ifb_trail(t); }
      publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
 -    if (!IOFramebuffer::start(provider)) {

@@ -18,8 +18,8 @@ def replace_once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
-# These two changes are the complete replacement for intelfb-0003. Later patches 0009 and 0012
-# refine the dependent-ID and VBL/power logic, so do not pre-apply their final state here.
+# These two changes replace intelfb-0003. The later 0009 and 0012 patches refine the
+# dependent-ID and VBL/power behavior, so leave those hunks for their own patches.
 replace_once(
 '''    IOReturn setPowerState(unsigned long ordinal, IOService *) override {
         handleEvent(ordinal ? kIOFBNotifyDidPowerOn : kIOFBNotifyWillPowerOff);

@@ -1,3 +1,5 @@
+> **Superseded:** this audit describes the 2.7.1 source state only. Upstream 2.7.2 changed the display-pointer API and is the current migration target. Use [the 2.7.2 migration audit](nullmoth-2.7.2-migration.md); do not use the 2.7.1 notes as build or install instructions.
+
 # NullMoth 2.7.1 migration notes
 
 Target upstream release: `nullmoth/nvidia-macos-driver` tag `v2.7.1`, commit `6b4752c51b0719862fb46471d383317ef7ecc6f0`.

@@ -62,6 +62,8 @@ if [ "$REV" = "v2.7.2" ]; then
     echo "STOP: legacy public kernel-pointer IORegistry properties remain in NMIntelFB" >&2
     exit 1
   fi
+  echo "2.7.2 AGDC source tail:"
+  nl -ba "$W/src/intelfb.cpp" | sed -n '1135,1165p'
 fi
 # intelfb-0011 needs NVKMS's kernel API headers, from NVIDIA's open-gpu-kernel-modules at the tag NVRM is built from.
 OGKM_TAG=${OGKM_TAG:-615.78.08}; KAPI=$W/kapi-hdr-$OGKM_TAG

@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 if len(sys.argv) not in (2, 3):
-    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp [early|kapi]")
+    raise SystemExit("usage: apply-2.7.2-port.py path/to/intelfb.cpp [early|kapi|agdc]")
 
 path = Path(sys.argv[1])
 mode = sys.argv[2] if len(sys.argv) == 3 else "early"
@@ -34,7 +34,6 @@ if mode == "early":
     }''',
         "setPowerState trace",
     )
-
     replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     if (!IOFramebuffer::start(provider)) {
@@ -74,7 +73,20 @@ if mode == "early":
         "dependent-ID before IOFramebuffer::start",
     )
 elif mode == "kapi":
-    # Patch 0011 adds kapiInit(); insert its call before patch 0012 refines the VBL/power block.
+    # The upstream 2.7.2 source no longer carries these declarations; patch 0014 expects them.
+    replace_once(
+'''#include "nvrm_vram_abi.h"
+#include <IOKit/IOBufferMemoryDescriptor.h>''',
+'''#include "nvrm_vram_abi.h"
+extern "C" {
+#include "nvkms-kapi.h"
+}
+#define NVRM_GPUVA_ABI_VERSION 1u
+#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
+struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
+#include <IOKit/IOBufferMemoryDescriptor.h>''',
+        "NVKMS KAPI and RM handles ABI declarations",
+    )
     replace_once(
 '''    armVbl();
     ifb_trail("vbl");
@@ -84,6 +96,15 @@ elif mode == "kapi":
     if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
     registerPowerDriver(this, kPowerStates, 2);''',
         "initialize the primary NVKMS device after VBL startup",
+    )
+elif mode == "agdc":
+    replace_once(
+'''    } else ifb_trail("no-pm");
+    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
+'''    } else ifb_trail("no-pm");
+    if (gIfbNubFB == this) ifb_agdc_register(true);
+    IFBLOG("built-in panel published (%ux%u)", fWidth, fHeight);''',
+        "register the synthetic Intel panel with AGDC",
     )
 else:
     raise SystemExit(f"unknown mode: {mode}")

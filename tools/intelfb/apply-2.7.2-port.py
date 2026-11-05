@@ -33,6 +33,32 @@ replace_once(
 )
 
 replace_once(
+'''#include "nvrm_vram_abi.h"
+#include <IOKit/IOBufferMemoryDescriptor.h>''',
+'''#include "nvrm_vram_abi.h"
+// NVKMS kernel API and the RM-handles ABI answered to NVAccel by the primary framebuffer.
+extern "C" {
+#include "nvkms-kapi.h"
+}
+#define NVRM_GPUVA_ABI_VERSION 1u
+#define NVRM_GPUVA_FN_HANDLES  "nvRmHandles"
+struct NVRMRmHandles { unsigned int version; void *kapiDevice; unsigned int hClient, hDevice, hSubDevice; };
+#include <IOKit/IOBufferMemoryDescriptor.h>''',
+"NVKMS KAPI include and RM-handles ABI",
+)
+
+replace_once(
+'''    armVbl();
+    ifb_trail("vbl");
+    // Some firmware/boards hang while registering power management; keep it disabled until target sleep testing.''',
+'''    armVbl();
+    ifb_trail("vbl");
+    if (fOwnGroup && ifb_knob("nullmoth-intelfb-head", 0) != 4) kapiInit();
+    // Some firmware/boards hang while registering power management; keep it disabled until target sleep testing.''',
+"initialize the primary NVKMS device after VBL startup",
+)
+
+replace_once(
 '''    publishBacklight();   // before IOFramebuffer::start: IOFramebuffer::open looks for a service named "backlight"
     if (!IOFramebuffer::start(provider)) {
         ifb_trail("fb-start-failed");

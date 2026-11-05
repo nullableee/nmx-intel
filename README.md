@@ -74,8 +74,8 @@ sudo bash tools/upgrade/install-2.7.2.sh restore
 
 The macOS 15 compile workflow has passed, so a controlled Sequoia hardware test is now possible. Neither Sequoia nor
 Tahoe has been boot-tested on the GIGABYTE G6 MF. The installer checks the installed NVRM/NVRMFB pointer API and
-backs up the current kexts before replacing them. Tahoe 26 remains blocked until the private AGDC ABI is validated
-there. Keep a bootable OpenCore recovery path.
+backs up the current kexts before replacing them. Follow the [G6 MF test plan](docs/tests/gigabyte-g6-mf-2.7.2.md).
+Tahoe 26 remains blocked until the private AGDC ABI is validated there. Keep a bootable OpenCore recovery path.
 
 ## Known limits
 

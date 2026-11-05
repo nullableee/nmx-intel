@@ -13,6 +13,17 @@ macOS Sequoia 15.8.1, nullmoth's driver 2.3.6. There, wallpaper, transparency, a
 WindowServer dropped from about 225 % CPU to 67 %, and copying a frame to the panel takes 1.4 ms. Brightness keys
 work too.
 
+## Compatibility status
+
+The historical bridge was tested on 2.3.6. The 2.7.1 migration was superseded by upstream 2.7.2 before it was
+validated. The current source audit targets `v2.7.2`, but the Intel-panel bridge is **not compatible yet**:
+2.7.2 removes the `nvkms-kapi` and `phys-for-va` IORegistry properties and replaces them with the protected
+`nvDisplayPointers` platform-function API. The NMX bridge's old pointer-copy path must be ported to that API before
+building or installing NMIntelFB. See [the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md).
+
+The optional NVAccel and NVRM optimizations are also unvalidated for 2.7.2. Do not reuse old NVRM binary offsets or
+claim compatibility based only on a successful source rebase.
+
 ## Will it work on my laptop?
 
 You need all of these:
@@ -27,11 +38,7 @@ You need all of these:
 - macOS Sequoia already booting with OpenCore, with the panel working on the firmware framebuffer.
 - Xcode Command Line Tools (`xcode-select --install`), git, and internet access during the build (it downloads a
   few NVIDIA headers).
-- nullmoth's NVIDIA driver. The original Intel-panel bridge was tested on 2.3.6; the 2.7.1 source migration is in progress.
-  NMIntelFB's source is unchanged from 2.6.6 to 2.7.1, but upstream added backlight support between 2.5.4 and 2.6.6,
-  so the existing Intel framebuffer patch series must be checked against 2.7.1 before changing its build base. The shared
-  ABI headers are unchanged; optional NVAccel/NVRM optimizations are not considered compatible until rebuilt and validated. See
-  [the 2.7.1 migration notes](docs/knowledge/nullmoth-2.7.1-migration.md) and [the upgrade runbook](docs/knowledge/nullmoth-upgrade.md).
+- nullmoth's NVIDIA driver. The original Intel-panel bridge was tested on 2.3.6 only; 2.7.2 is under source audit.
 
 To see your iGPU's device ID:
 
@@ -44,123 +51,25 @@ use the same display registers and should behave the same, but nobody has tried 
 
 ## Install
 
-1. Install nullmoth's NVIDIA driver with its 1401 app and reboot. Keep the app's "AMD / Intel" test driver off.
-   Before going on, check that the NVIDIA card shows up in System Information with Metal support.
-
-2. Get the sources. The build script expects nullmoth's repo in `~/nmx-build`:
-
-   ```bash
-   git clone https://github.com/nullableee/nmx-intel ~/nmx-intel
-   ```
-
-   ```bash
-   git clone https://github.com/nullmoth/nvidia-macos-driver ~/nmx-build/nvidia-macos-driver
-   ```
-
-3. Build NMIntelFB. It ends by printing the kext's hash and size:
-
-   ```bash
-   bash ~/nmx-intel/tools/intelfb/build.sh
-   ```
-
-4. Install it. This copies the kext to `/Library/Extensions` and rebuilds the auxiliary kext collection, keeping a
-   backup of the old one in your home folder:
-
-   ```bash
-   sudo bash ~/nmx-intel/tools/intelfb/install.sh
-   ```
-
-5. Make NMIntelFB wait 45 seconds before taking the panel. That is how it has always run here; booting without the
-   wait froze once and hasn't been retested since.
-
-   ```bash
-   sudo nvram nullmoth-intelfb-delay=45
-   ```
-
-6. Install the boot job that switches the accelerated desktop on at every boot:
-
-   ```bash
-   sudo bash ~/nmx-intel/tools/intelfb/auto.sh install
-   ```
-
-7. Turn sleep off. After S3 the Intel display engine comes back with every register at zero and nothing relights the
-   panel yet.
-
-   ```bash
-   sudo pmset -a disablesleep 1
-   ```
-
-8. Reboot. The boot logo stays about 45 seconds longer than usual, then the login window appears on the panel.
-
-To check that frames are going through NMIntelFB, this number should keep growing while something moves on screen:
-
-```bash
-sysctl debug.nvaccel_iop_ok
-```
-
-## If something goes wrong
-
-- Black screen at boot: pick "Start once without NVIDIA driver" in the OpenCore picker, or add `-nvoff` to the
-  boot-args for one boot. NMIntelFB stays off too, and the firmware framebuffer gives you a desktop.
-- `-nmintelfboff` in boot-args, or `sudo nvram nullmoth-intelfb=0`, turns NMIntelFB off without removing it.
-- If a start of NMIntelFB never returns, the next boot skips it on its own. Run
-  `sudo nvram -d nullmoth-intelfb-attaching` to let it try again.
-- nullmoth's driver turns itself off after two starts that never lit a display. If that happens after forced
-  power-offs, clear the counter with `sudo nvram -d nullmoth-nv-starts`.
-- `nvram nullmoth-intelfb-trail` shows the last step NMIntelFB reached, even when a boot froze before the log was
-  saved. More tokens and logs: [docs/knowledge/diagnostics.md](docs/knowledge/diagnostics.md).
-- `sudo bash ~/nmx-intel/tools/upgrade/rollback.sh <backup dir>` puts back the NVIDIA driver that nullmoth's
-  installer backed up in `/Library/NullMoth/backup-*` before an upgrade.
-- To remove everything: `sudo bash ~/nmx-intel/tools/intelfb/auto.sh remove`, then
-  `sudo bash ~/nmx-intel/tools/intelfb/install.sh remove`, then reboot.
+Do not follow the historical install/build procedure for a 2.7.2 setup yet. The bridge is not ported to the new
+protected display-pointer API. Keep the known-good 2.3.6 setup and recovery path until the migration audit's gates pass.
 
 ## Known limits
 
-- Sleep breaks the panel (see step 7). Two attempts with hibernation failed:
-  [docs/tests/sleep-1-hibernate.md](docs/tests/sleep-1-hibernate.md).
+- Sleep breaks the panel on the historical bridge (see `tests/sleep-1-hibernate.md`).
 - One display only, the internal panel at its native mode.
 - The NVIDIA card stays on all the time. Battery cost hasn't been measured.
-- The 45-second wait adds that much to every boot.
+- The historical bridge adds a 45-second boot wait.
 
 ## Faster copies (optional)
 
-Two more changes cut the per-frame cost on the test machine: a patched NVAccel that has the RTX copy engine write straight
-into the panel's memory, and a byte patch that makes NVRM sleep instead of spin while it waits for that copy. They
-need a more involved build (NVIDIA's open-gpu-kernel-modules sources and a worktree of nullmoth's repo) and must be
-redone for each nullmoth release. `auto.sh` turns them on when it finds them. Runbook:
-[docs/knowledge/nullmoth-upgrade.md](docs/knowledge/nullmoth-upgrade.md); current 2.7.1 audit:
-[docs/knowledge/nullmoth-2.7.1-migration.md](docs/knowledge/nullmoth-2.7.1-migration.md); background:
-[docs/knowledge/bridge-optimization.md](docs/knowledge/bridge-optimization.md).
+The historical bridge also had a patched NVAccel and a byte patch that made NVRM sleep instead of spin while it waited
+for the copy engine. Both are release-specific and are not validated for 2.7.2. See
+[the 2.7.2 migration audit](docs/knowledge/nullmoth-2.7.2-migration.md) and the historical
+[upgrade runbook](docs/knowledge/nullmoth-upgrade.md).
 
 ## The i915 experiment
 
 Before the NVIDIA route, this repo ported Linux's i915 to macOS through nullmoth's NMXGPU (its drm-kmod port, enabled
 by the 1401 app's "AMD / Intel" test driver). i915 drives the panel at 1920x1080, 144 Hz, and the desktop is stable,
-but WindowServer still composites in software, so it is parked. Build steps and history are in
-[docs/index.md](docs/index.md); the sources live in `build/` and `source-fixes/`.
-
-## Repo layout
-
-```
-tools/intelfb/   build, install and boot job for NMIntelFB (the route above)
-tools/accel/     patched NVAccel (optional speedup)
-tools/nvrm/      NVRM byte patch (optional speedup)
-tools/sleep/     hibernation experiment (parked)
-tools/upgrade/   nullmoth driver upgrade, with rollback.sh
-tools/wifi/      MediaTek MT7921 Wi-Fi (native menu, 5 GHz, ~37 Mbit/s up and down)
-tools/mirror/, libdrm/, probe/, vram/, binpatch/   i915 port helpers and diagnostics
-tools/agent/     installs the Claude Code skills used here
-source-fixes/    our patches: intelfb/, accel/, and the i915 port
-build/           i915 port: set up ~/nmx-build, apply fixes, build NMXGPU
-docs/            status, test logs, knowledge base (start at docs/status.md)
-```
-
-## License
-
-nullmoth's code is PolyForm Noncommercial 1.0.0 (personal and research use). This repo ships only scripts and diffs,
-never binaries, so you build the kexts yourself.
-
-<div align="center">
-  <img src="claude.png" width="300" height="300">
-  <p>kitsuneislife, 2026</p>
-</div>
+but WindowServer still compos

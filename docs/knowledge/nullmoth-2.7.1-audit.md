@@ -1,3 +1,5 @@
+> **Superseded:** this is historical 2.7.1 evidence. The current target is 2.7.2; see [the 2.7.2 migration audit](nullmoth-2.7.2-migration.md).
+
 # NullMoth 2.7.1 upgrade audit
 
 This short audit is superseded by the detailed, corrected [2.7.1 migration notes](nullmoth-2.7.1-migration.md). Keep that page as the source of truth for the rebase.

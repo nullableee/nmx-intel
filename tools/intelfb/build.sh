@@ -34,7 +34,7 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
     python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" early
   elif ! patch --verbose -l -d "$W/src" -p1 < "$p"; then
     echo "SOURCE CONTEXT AROUND THE REJECT:" >&2
-    nl -ba "$W/src/intelfb.cpp" | sed -n '440,500p' >&2
+    nl -ba "$W/src/intelfb.cpp" | sed -n '440,500p;580,650p;870,1010p' >&2
     for rej in "$W/src"/*.rej; do
       [ -f "$rej" ] || continue
       echo "REJECTED HUNKS: $rej" >&2

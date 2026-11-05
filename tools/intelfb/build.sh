@@ -29,6 +29,9 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
         echo "skip: rebased nvDisplayPointers patch is specific to v2.7.2"
         continue
       fi ;;
+    intelfb-0014-agdc-lists-the-panel.patch:v2.7.2)
+      echo "apply: AGDC compatibility through exact-context 2.7.2 helper"
+      continue ;;
   esac
   if [ "$(basename "$p")" = "intelfb-0003-dependent-id-before-start.patch" ]; then
     python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" early
@@ -45,7 +48,7 @@ for p in "$HERE"/source-fixes/intelfb/intelfb-*.patch; do
   echo "patch: $(basename "$p")"
   if [ "$(basename "$p")" = "intelfb-0011-nvkms-device-answers-nvaccel.patch" ]; then
     python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" kapi
-  elif [ "$(basename "$p")" = "intelfb-0014-agdc-lists-the-panel.patch" ]; then
+  elif [ "$(basename "$p")" = "intelfb-0013-panel-under-nvrm.patch" ]; then
     python3 "$HERE/tools/intelfb/apply-2.7.2-port.py" "$W/src/intelfb.cpp" agdc
   fi
 done
